@@ -2,14 +2,35 @@ package jjf4
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
+	"main/database"
 
 	"github.com/cloudwego/eino/components/prompt"
 	"github.com/cloudwego/eino/compose"
 	"github.com/cloudwego/eino/schema"
+	"github.com/segmentio/kafka-go"
 )
 
 // newLambda component initialization function of node 'TransformForEnd' in graph 'mytest2'
 func newLambda(ctx context.Context, input []*schema.Message) (output *schema.Message, err error) {
+	res := struct {
+		Status int    `json:"status"`
+		Msg    string `json:"msg"`
+		Data   string `json:"data"`
+	}{}
+
+	_ = json.Unmarshal([]byte(input[0].Content), &res)
+	if res.Data == "" {
+		return nil, fmt.Errorf(res.Msg)
+	}
+	kafkaConn := database.InitKafkaForProducer(ctx)
+	_, err = kafkaConn.WriteMessages(
+		kafka.Message{Value: []byte(res.Data)},
+	)
+	if err != nil {
+		return nil, err
+	}
 	return input[0], nil
 }
 

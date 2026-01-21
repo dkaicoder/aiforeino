@@ -1,16 +1,19 @@
-package jjf4
+package database
 
 import (
 	"context"
 	"fmt"
+	"log"
 
 	redis2 "github.com/redis/go-redis/v9"
+	"github.com/segmentio/kafka-go"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 )
 
 var redisDb *redis2.Client
 var mysqlDb *gorm.DB
+var kafkaConn *kafka.Conn
 
 func InitRedis(ctx context.Context) *redis2.Client {
 	if redisDb == nil {
@@ -41,4 +44,28 @@ func InitMysql(ctx context.Context) *gorm.DB {
 		return db
 	}
 	return mysqlDb
+}
+
+func InitKafkaForProducer(ctx context.Context) *kafka.Conn {
+	if kafkaConn == nil {
+		topic := "my-topic"
+		partition := 0
+		conn, err := kafka.DialLeader(context.Background(), "tcp", "localhost:9092", topic, partition)
+		if err != nil {
+			log.Fatal("failed to dial leader:", err)
+		}
+		return conn
+	}
+	return kafkaConn
+}
+
+func InitKafkaForConsumer(ctx context.Context) *kafka.Reader {
+	r := kafka.NewReader(kafka.ReaderConfig{
+		Brokers:   []string{"localhost:9092"},
+		Topic:     "my-topic",
+		Partition: 0,
+		MaxBytes:  10e6, // 10MB
+		GroupID:   "my-first-kafka-consumer-group",
+	})
+	return r
 }

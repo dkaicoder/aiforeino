@@ -3,6 +3,7 @@ package jjf4
 import (
 	"context"
 	"fmt"
+	"main/database"
 
 	"github.com/cloudwego/eino-ext/components/retriever/redis"
 	"github.com/cloudwego/eino/components/retriever"
@@ -10,7 +11,7 @@ import (
 
 // newRetriever component initialization function of node 'Retriever1' in graph 'mytest2'
 func newRetriever(ctx context.Context) (rtr retriever.Retriever, err error) {
-	initRedis := InitRedis(ctx)
+	initRedis := database.InitRedis(ctx)
 	embeddingIns11, err := newEmbedding(ctx)
 	if err != nil {
 		return nil, err

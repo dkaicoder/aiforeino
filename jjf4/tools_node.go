@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"main/database"
 
 	"github.com/cloudwego/eino/components/tool"
 	"github.com/cloudwego/eino/compose"
@@ -60,9 +61,10 @@ func (impl *ToolImpl) InvokableRun(ctx context.Context, argumentsInJSON string, 
 	res := struct {
 		Status int    `json:"status"`
 		Msg    string `json:"msg"`
+		Data   string `json:"data"`
 	}{}
 	json.Unmarshal([]byte(argumentsInJSON), &sqlStruct)
-	db := InitMysql(ctx)
+	db := database.InitMysql(ctx)
 	sql := fmt.Sprintf("EXPLAIN %s", sqlStruct.SQL)
 	fmt.Println(sql)
 	err := db.Raw(sql).Error
@@ -71,6 +73,7 @@ func (impl *ToolImpl) InvokableRun(ctx context.Context, argumentsInJSON string, 
 	}
 	res.Status = 200
 	res.Msg = "success"
+	res.Data = sqlStruct.SQL
 	js, _ := json.Marshal(res)
 	return string(js), nil
 }
