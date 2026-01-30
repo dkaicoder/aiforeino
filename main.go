@@ -2,20 +2,23 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"main/database"
 	"main/jjf4"
-	"math/rand"
-	"runtime"
-	"strconv"
+	"net/http"
+	"strings"
+	"sync"
 	"time"
 
+	"github.com/cloudwego/eino-ext/callbacks/langfuse"
+	"github.com/cloudwego/eino-ext/components/model/ark"
 	"github.com/cloudwego/eino/callbacks"
+	"github.com/cloudwego/eino/components/prompt"
 	"github.com/cloudwego/eino/compose"
 	"github.com/cloudwego/eino/schema"
-	"github.com/segmentio/kafka-go"
-	"github.com/xuri/excelize/v2"
 )
 
 const (
@@ -23,89 +26,306 @@ const (
 	index  = "OuterIndex"
 )
 
-func jjf4sss(ctx context.Context) {
-	database.InitRedis(ctx)
-	database.InitMysql(ctx)
-
+func jjf4sss(ctx context.Context, exportTaskID string, msgChan chan string, questing string) {
+	cbh, flusher := langfuse.NewLangfuseHandler(&langfuse.Config{
+		Host:      "https://us.cloud.langfuse.com",
+		PublicKey: "pk-lf-8f9c06d7-b5ff-48ed-a559-e0e04d197e88",
+		SecretKey: "sk-lf-9d1c1bf0-6458-41a2-aa40-9a5b56015c06",
+	})
+	callbacks.AppendGlobalHandlers(cbh)
 	r, err := jjf4.Buildmytest2(ctx)
 	if err != nil {
 		fmt.Printf("编译Graph流程失败：%v\n", err)
 		return
 	}
+
+	messageBody := jjf4.GraphChoice{}
+	json.Unmarshal([]byte(questing), &messageBody)
+	messageBody.ExportTaskID = exportTaskID
+	questings, _ := json.Marshal(messageBody)
 	maps := []*schema.Message{{
 		Role:    schema.User,
-		Content: "我要导出25年10月13号的用户玩法明细",
+		Content: string(questings),
 	}}
 	handler := callbacks.NewHandlerBuilder().
 		OnStartFn(func(ctx context.Context, info *callbacks.RunInfo, input callbacks.CallbackInput) context.Context {
-			fmt.Printf("[%s] >>> 节点开始: %s\n", time.Now().Format("15:04:05"), info.Name)
+			if info.Name != "" {
+				sseMsg := buildSSEEvent("startprogress", exportTaskID, info.Name, "start")
+				msgChan <- sseMsg
+			}
 			return ctx
 		}).
 		OnEndFn(func(ctx context.Context, info *callbacks.RunInfo, output callbacks.CallbackOutput) context.Context {
-			fmt.Printf("[%s] <<< 节点结束: %s\n", time.Now().Format("15:04:05"), info.Name)
+			if info.Name != "" {
+				sseMsg := buildSSEEvent("endprogress", exportTaskID, info.Name, "end")
+				msgChan <- sseMsg
+			}
 			return ctx
 		}).
 		Build()
-	result, err := r.Invoke(ctx, maps, compose.WithCallbacks(handler))
+	_, err = r.Invoke(ctx, maps, compose.WithCallbacks(handler))
 	if err != nil {
-		fmt.Printf("运行流程失败：%v\n", err.Error())
+		msg := strings.ReplaceAll(err.Error(), "\n", " | ")
+		sseMsg := fmt.Sprintf(
+			"event: progress\ndata: {\"task_id\":\"%s\",\"status\":\"error\",\"msg\":\"%s\"}\n\n",
+			exportTaskID,
+			msg,
+		)
+		graphEndSaveRes(ctx, err.Error())
+		msgChan <- sseMsg
+	} else {
+		url := "http://127.0.0.1:8080/" + exportTaskID + ".xlsx"
+		sseMsg := fmt.Sprintf("event: progress\ndata: {\"task_id\":\"%s\",\"status\":\"completed\",\"url\":\"%s\"}\n\n", exportTaskID, url)
+		graphEndSaveRes(ctx, url)
+		msgChan <- sseMsg
+	}
+	flusher()
+}
+
+func graphEndSaveRes(ctx context.Context, content string) (err error) {
+	messageId := fmt.Sprintf("%d%d", time.Now().UnixNano(), time.Now().UnixNano()%1000)
+	chatMessage := &ChatMessage{
+		MsgID:     messageId,
+		Role:      schema.Assistant,
+		Content:   content,
+		Timestamp: time.Now().Unix(),
+	}
+	err = chatMessage.SaveChatMessage(ctx, "session_12345")
+	if err != nil {
+		return fmt.Errorf("保存消息失败：%w", err)
+	}
+	return nil
+}
+
+func getChatHistory(ctx context.Context, question string) (output []*schema.Message, err error) {
+	messageId := fmt.Sprintf("%d%d", time.Now().UnixNano(), time.Now().UnixNano()%1000)
+	chatMessage := &ChatMessage{
+		MsgID:     messageId,
+		Role:      schema.User,
+		Content:   question,
+		Timestamp: time.Now().Unix(),
+	}
+
+	getChatHistory, err := chatMessage.GetChatHistory(ctx, "session_12345", 10, 0)
+	if err != nil {
+		return nil, fmt.Errorf("读取历史对话失败：%w", err)
+	}
+	for _, msg := range getChatHistory {
+		historyMsg := &schema.Message{
+			Role:    msg.Role,
+			Content: msg.Content,
+		}
+		output = append(output, historyMsg)
+	}
+
+	err = chatMessage.SaveChatMessage(ctx, "session_12345")
+	if err != nil {
+		return nil, fmt.Errorf("保存消息失败：%w", err)
+	}
+	return output, nil
+}
+func buildSSEEvent(eventType string, taskID string, node string, status string) string {
+	progress := map[string]any{
+		"task_id": taskID,
+		"node":    node,
+		"status":  status,
+		"time":    time.Now().Format("15:04:05"),
+	}
+	data, _ := json.Marshal(progress)
+	return fmt.Sprintf("event: %s\ndata: %s\n\n", eventType, string(data))
+}
+
+// 前置需求验证
+func frontChatModel(ctx context.Context, question string) string {
+	chatModel, err := ark.NewChatModel(ctx, &ark.ChatModelConfig{
+		APIKey: "358ad2c2-9d3b-4990-92c7-117cf25fdae3",
+		Model:  "doubao-seed-1-6-lite-251015",
+	})
+	var output []*schema.Message
+	output = append(output, &schema.Message{
+		Role:    schema.System,
+		Content: roleForFrontModel(),
+	})
+	output = append(output, &schema.Message{
+		Role:    schema.User,
+		Content: question,
+	})
+	generateResult, err := chatModel.Generate(ctx, output)
+	if err != nil || generateResult == nil {
+		log.Fatalf("创建流失败: %v", err)
+	}
+	return generateResult.Content
+}
+
+// 大模型聊天
+func bigChatModel(ctx context.Context, question string) *schema.StreamReader[*schema.Message] {
+	chatModel, err := ark.NewChatModel(ctx, &ark.ChatModelConfig{
+		APIKey: "358ad2c2-9d3b-4990-92c7-117cf25fdae3",
+		Model:  "doubao-seed-1-6-251015",
+	})
+	if err != nil {
+		panic(err)
+	}
+	getChatHistoryFunc, err := getChatHistory(ctx, question)
+	if err != nil {
+		log.Fatalf("获取历史对话失败: %v", err)
+	}
+	template := prompt.FromMessages(schema.FString,
+		schema.SystemMessage(roleForBigModel()),
+		schema.MessagesPlaceholder("chat_history", true),
+		schema.UserMessage("问题: {question}"),
+	)
+	var toolList = map[string]string{
+		"export": "导出数据库表数据到excel文件",
+	}
+	toolDesc := "支持的工具列表：\n"
+	for t, desc := range toolList {
+		toolDesc += fmt.Sprintf("- %s：%s\n", t, desc)
+	}
+	messages, err := template.Format(context.Background(), map[string]any{
+		//"tool_list":    toolDesc,
+		"question":     question,
+		"chat_history": getChatHistoryFunc,
+	})
+	streamResult, err := chatModel.Stream(ctx, messages)
+	if err != nil || streamResult == nil {
+		log.Fatalf("创建流失败: %v", err)
+	}
+	return streamResult
+}
+func roleForBigModel() string {
+	var userPrompt = `
+	Role: 智能助手（兼工具识别与对话）
+	核心设定：
+	你是K的专属智能助手，负责处理用户提问并识别导出需求。
+	- 当被问及身份时，回答：我是K的智能助手
+	- 当被问及能做什么时，回答：目前我可以处理部分导出业务，以及解答日常问题
+	
+	对话规则：
+	1. 自然语言对话
+	   对于闲聊、问候、解释概念等非导出类提问，用友好、专业的自然语言回答
+	   无法回答的问题（如实时天气），可引导用户使用导出功能，例如：我无法查询实时天气，但可以帮您处理导出业务或解答其他日常问题
+	
+	2. 格式要求
+	   所有回答必须是纯自然语言，禁止返回任何JSON格式内容,尽量回答内容简介明了。
+    `
+	return userPrompt
+}
+
+func roleForFrontModel() string {
+	var userPrompt = `
+		# Role: 前置需求判断助手
+		## 核心目标
+		判断用户提问是否包含**导出/数据查询需求**，仅返回符合要求的 JSON 格式，无需求时返回空字符串。
+		
+		### 判定条件（必须同时满足）
+		1.  用户提问包含关键词：导出、数据、明细、订单、玩法、报表、下载、查询、统计、分析
+		2.  用户提问包含限定词：时间、用户、订单号、范围
+		
+		> 注：若缺少限定词，需返回「请补充需要导出的具体信息」
+		
+		### 输出格式要求
+		- 要么必须返回完整 JSON，无任何前缀、解释或 markdown或者要么返回空字符串
+		- 禁止返回自然语言
+		- JSON 格式：
+		{"graph_type":"export","desc":"一句话概括用户需求，用于后续查询"}
+`
+	return userPrompt
+}
+
+func streamHandler(w http.ResponseWriter, r *http.Request) {
+	// 设置响应头
+	w.Header().Set("Content-Type", "text/event-stream")
+	w.Header().Set("Cache-Control", "no-cache")
+	w.Header().Set("Connection", "keep-alive")
+	question := r.URL.Query().Get("question")
+	flusher, ok := w.(http.Flusher)
+	if !ok {
+		http.Error(w, "Streaming unsupported!", http.StatusInternalServerError)
 		return
 	}
+	ctx := context.Background()
+	stream := bigChatModel(ctx, question)
+	defer stream.Close()
 
-	//
-	fmt.Println(result)
-}
+	//前置模型判断用户需求
+	pdRe := frontChatModel(ctx, question)
+	if len(pdRe) > 10 {
+		msgChan := make(chan string, 100)
+		exportTaskID := fmt.Sprintf("export_%d", time.Now().Unix())
+		var wg sync.WaitGroup
+		wg.Add(1)
+		go func() {
+			fmt.Fprint(w, "data: 正在处理您的导出请求，请稍候...\n\n")
+			for msg := range msgChan {
+				fmt.Fprint(w, msg)
+				flusher.Flush()
+			}
+		}()
+		go func(exportTaskID string) {
+			defer close(msgChan)
+			jjf4sss(ctx, exportTaskID, msgChan, pdRe)
+		}(exportTaskID)
+		wg.Wait()
+	} else {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		var reposeAnswer string
+		for {
+			response, err := stream.Recv()
+			if err != nil {
+				if err == io.EOF {
+					break
+				}
+				fmt.Fprintf(w, "data: Error: %v\n\n", err)
+				flusher.Flush()
+				break
+			}
+			reposeAnswer += response.Content
+			fmt.Fprintf(w, "data: %s\n\n", response.Content)
+			flusher.Flush()
 
-func kafkas() {
-	topic := "my-topic"
-	partition := 0
-
-	conn, err := kafka.DialLeader(context.Background(), "tcp", "127.0.0.1:9092", topic, partition)
-	if err != nil {
-		log.Fatal("failed to dial leader:", err)
-	}
-
-	conn.SetWriteDeadline(time.Now().Add(10 * time.Second))
-	_, err = conn.WriteMessages(
-		kafka.Message{Value: []byte("SELECT user_player.id, user_player.uid, user_player.gift_id, user_player.gift_num, user_player.gift_name, user_player.gift_image, user_player.player_id, user_player.player_detail_id, user_player.create_at, user_player.update_at, `user`.nickname FROM user_player JOIN `user` ON user_player.uid = `user`.id")},
-	)
-	if err != nil {
-		log.Fatal("failed to write messages:", err)
-	}
-
-	if err := conn.Close(); err != nil {
-		log.Fatal("failed to close writer:", err)
-	}
-}
-
-func re() {
-	r := kafka.NewReader(kafka.ReaderConfig{
-		Brokers:   []string{"localhost:9092"},
-		Topic:     "my-topic",
-		Partition: 0,
-		MaxBytes:  10e6, // 10MB
-		GroupID:   "my-first-kafka-consumer-group",
-	})
-
-	for {
-		m, err := r.ReadMessage(context.Background())
-		if err != nil {
-			break
 		}
-		fmt.Printf("message at offset %d: %s = %s\n", m.Offset, string(m.Key), string(m.Value))
+		messageId := fmt.Sprintf("%d%d", time.Now().UnixNano(), time.Now().UnixNano()%1000)
+		chatMessage := &ChatMessage{
+			MsgID:     messageId,
+			Role:      schema.Assistant,
+			Content:   reposeAnswer,
+			Timestamp: time.Now().Unix(),
+		}
+		err := chatMessage.SaveChatMessage(ctx, "session_12345")
+		if err != nil {
+			log.Fatalf("保存消息失败：%v", err)
+		}
 	}
+}
 
-	if err := r.Close(); err != nil {
-		log.Fatal("failed to close reader:", err)
+func getHis(w http.ResponseWriter, r *http.Request) {
+	ctx := context.Background()
+	chatMessage := &ChatMessage{}
+	getChatHistory, err := chatMessage.GetChatHistory(ctx, "session_12345", 10, 0)
+	if err != nil {
+		panic(fmt.Errorf("读取历史对话失败：%w", err))
 	}
+	j, err := json.Marshal(getChatHistory)
+	if err != nil {
+		panic(err)
+	}
+	w.Write(j)
 }
 
 func main() {
+	ctx := context.Background()
+	database.InitRedis(ctx)
+	database.InitMysql(ctx)
 	//ctx := context.Background()
 	//jjf4sss(ctx)
-	ss := strconv.Itoa(int(time.Now().Unix()))
-
-	fmt.Println(ss)
+	//bigChatModel(ctx)
+	fileServer := http.FileServer(http.Dir("static"))
+	http.Handle("/", fileServer)
+	http.HandleFunc("/chat/history", getHis)
+	http.HandleFunc("/stream", streamHandler)
+	http.ListenAndServe(":8080", nil)
 	//kafkas()
 	//ttttt()
 	//re()
@@ -165,63 +385,4 @@ func main() {
 	//		}
 	//	}
 	//}
-}
-
-func ttttt() {
-
-	start := time.Now()
-	f := excelize.NewFile()
-	defer f.Close()
-
-	const sheet = "Sheet1"
-	sw, err := f.NewStreamWriter(sheet)
-	must(err)
-
-	// 写表头
-	header := []interface{}{"ID", "Name", "Amount", "CreatedAt"}
-	cell, _ := excelize.CoordinatesToCellName(1, 1)
-	must(sw.SetRow(cell, header))
-
-	// 模拟写 1,000,000 行
-	n := 1_000_000
-	for i := 1; i <= n; i++ {
-		row := []interface{}{
-			i,
-			"User_" + strconv.Itoa(i),
-			rand.Intn(10_000),
-			time.Now().Add(time.Duration(i) * time.Second).Format(time.RFC3339),
-		}
-		cell, _ := excelize.CoordinatesToCellName(1, i+1)
-		must(sw.SetRow(cell, row))
-
-		// 每 50k 行打印一次内存占用
-		if i%50_000 == 0 {
-			var m runtime.MemStats
-			runtime.ReadMemStats(&m)
-			fmt.Printf("[progress] rows=%d heap=%.2fMB\n", i, float64(m.HeapAlloc)/1024.0/1024.0)
-		}
-	}
-
-	must(sw.Flush())
-
-	// 可选：冻结首行 + 自动列宽（注意：自动列宽对流式无感，需在 Flush 后做固定宽度）
-	// 冻结首行
-	must(f.SetPanes(sheet, &excelize.Panes{
-		Freeze:      true,
-		YSplit:      1,
-		ActivePane:  "bottomLeft",
-		TopLeftCell: "A2",
-	}))
-
-	// 保存到磁盘（也可改为写到 HTTP ResponseWriter，见后文）
-	must(f.SaveAs("bigdata.xlsx"))
-
-	fmt.Printf("done in %v\n", time.Since(start))
-
-}
-
-func must(err error) {
-	if err != nil {
-		panic(err)
-	}
 }

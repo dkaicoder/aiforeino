@@ -4,9 +4,11 @@ go 1.24.6
 
 require (
 	github.com/cloudwego/eino v0.7.13
+	github.com/cloudwego/eino-ext/callbacks/langfuse v0.0.0-20260122064704-d8be5ee82c09
 	github.com/cloudwego/eino-ext/components/document/loader/file v0.0.0-20251208120430-a84219023f62
 	github.com/cloudwego/eino-ext/components/document/transformer/splitter/markdown v0.0.0-20251208120430-a84219023f62
 	github.com/cloudwego/eino-ext/components/indexer/redis v0.0.0-20260109062358-b9080dbc7bed
+	github.com/cloudwego/eino-ext/components/model/openai v0.1.8
 	github.com/redis/go-redis/v9 v9.17.2
 	github.com/segmentio/kafka-go v0.4.50
 	github.com/spf13/viper v1.21.0
@@ -17,10 +19,15 @@ require (
 
 require (
 	filippo.io/edwards25519 v1.1.0 // indirect
+	github.com/cenkalti/backoff/v4 v4.3.0 // indirect
+	github.com/cloudwego/eino-ext/libs/acl/langfuse v0.0.0-20251124083837-ce2e7e196f9f // indirect
+	github.com/cloudwego/eino-ext/libs/acl/openai v0.1.13 // indirect
+	github.com/evanphx/json-patch v0.5.2 // indirect
 	github.com/go-sql-driver/mysql v1.8.1 // indirect
 	github.com/jinzhu/inflection v1.0.0 // indirect
 	github.com/jinzhu/now v1.1.5 // indirect
 	github.com/klauspost/compress v1.15.9 // indirect
+	github.com/meguminnnnnnnnn/go-openai v0.1.1 // indirect
 	github.com/pierrec/lz4/v4 v4.1.15 // indirect
 )
 
@@ -33,8 +40,8 @@ require (
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/cloudwego/base64x v0.1.6 // indirect
 	github.com/cloudwego/eino-ext/components/embedding/ark v0.1.1
-	github.com/cloudwego/eino-ext/components/model/ark v0.1.62
-	github.com/cloudwego/eino-ext/components/retriever/redis v0.0.0-20260109062358-b9080dbc7bed
+	github.com/cloudwego/eino-ext/components/model/ark v0.1.63
+	github.com/cloudwego/eino-ext/components/retriever/redis v0.0.0-20260122064704-d8be5ee82c09
 	github.com/dgryski/go-rendezvous v0.0.0-20200823014737-9f7001d12a5f // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/eino-contrib/jsonschema v1.0.3 // indirect
@@ -70,7 +77,7 @@ require (
 	github.com/xuri/nfp v0.0.2-0.20250530014748-2ddeb826f9a9 // indirect
 	github.com/yargevad/filepathx v1.0.0 // indirect
 	go.yaml.in/yaml/v3 v3.0.4 // indirect
-	golang.org/x/arch v0.11.0 // indirect
+	golang.org/x/arch v0.12.0 // indirect
 	golang.org/x/crypto v0.43.0 // indirect
 	golang.org/x/exp v0.0.0-20250218142911-aa4b98e5adaa // indirect
 	golang.org/x/net v0.46.0 // indirect

@@ -3,13 +3,10 @@ package main
 import (
 	"context"
 	"database/sql"
-	"main/database"
-	"strconv"
-	"time"
-
 	"errors"
 	"fmt"
 	"log"
+	"main/database"
 	"os"
 	"os/signal"
 	"strings"
@@ -20,7 +17,12 @@ import (
 	"gorm.io/gorm"
 )
 
-var exportChan = make(chan string, 100)
+type exportTask struct {
+	sql      string
+	exportId string
+}
+
+var exportChan = make(chan exportTask, 100)
 var exportWg sync.WaitGroup
 
 func main() {
@@ -68,8 +70,12 @@ func KafkaReader(ctx context.Context) {
 				continue
 			}
 			log.Printf("收到Kafka消息: offset=%d, value=%s", m.Offset, string(m.Value))
+			exportSt := exportTask{
+				sql:      string(m.Value),
+				exportId: string(m.Key),
+			}
 			select {
-			case exportChan <- string(m.Value):
+			case exportChan <- exportSt:
 			case <-ctx.Done():
 				log.Println("往通道塞数据时收到退出信号，放弃发送")
 				return
@@ -95,7 +101,7 @@ func StartExportWorkers(ctx context.Context, workerCount int, export *ExportData
 						log.Printf("导出协程%d：通道已关闭，无数据可处理，退出", workerID)
 						return
 					}
-					if err := export.exportData(ctx, data); err != nil {
+					if err := export.exportData(ctx, data.sql, data.exportId); err != nil {
 						log.Printf("导出协程%d：数据[%s]导出失败: %v", workerID, data, err)
 					} else {
 						log.Printf("导出协程%d：数据[%s]导出成功", workerID, data)
@@ -129,7 +135,7 @@ func (r *ExportDataBase) getDataTotalNum(baseSql string) error {
 	return nil
 }
 
-func (r *ExportDataBase) exportData(ctx context.Context, baseSql string) (err error) {
+func (r *ExportDataBase) exportData(ctx context.Context, baseSql string, filename string) (err error) {
 	err = r.getDataTotalNum(baseSql)
 	if err != nil {
 		return err
@@ -170,7 +176,7 @@ func (r *ExportDataBase) exportData(ctx context.Context, baseSql string) (err er
 		if err := sw.Flush(); err != nil {
 			panic(err)
 		}
-		savePath := strconv.Itoa(int(time.Now().Unix()))
+		savePath := fmt.Sprintf("static/%s.xlsx", filename)
 		if err := excelFile.SaveAs(savePath); err != nil {
 			log.Fatalf("保存 Excel 文件失败: %v", err)
 		}

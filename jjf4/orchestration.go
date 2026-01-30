@@ -7,7 +7,41 @@ import (
 	"github.com/cloudwego/eino/schema"
 )
 
-func Buildmytest2(ctx context.Context) (r compose.Runnable[[]*schema.Message, *schema.Message], err error) {
+func Buildmytest2(ctx context.Context) (r compose.Runnable[[]*schema.Message, []*schema.Message], err error) {
+	const (
+		ChatModel1 = "ChatModel1"
+		Lambda1    = "Lambda1"
+		Lambda2    = "Lambda2"
+		Graph1     = "Graph1"
+	)
+	g := compose.NewGraph[[]*schema.Message, []*schema.Message](compose.WithGenLocalState(func(ctx context.Context) (state any) {
+		return nil
+	}))
+	chatModel1KeyOfChatModel, err := newChatModelDoubao15pro(ctx)
+	if err != nil {
+		return nil, err
+	}
+	_ = g.AddChatModelNode(ChatModel1, chatModel1KeyOfChatModel)
+	_ = g.AddLambdaNode(Lambda1, compose.InvokableLambda(newLambdaForNeed))
+	_ = g.AddLambdaNode(Lambda2, compose.InvokableLambda(newLambdaForArr))
+	graph2KeyOfexport, err := buildexport(ctx)
+	if err != nil {
+		return nil, err
+	}
+	_ = g.AddGraphNode(Graph1, graph2KeyOfexport,
+		compose.WithGraphCompileOptions(
+			compose.WithGraphName("export")))
+	_ = g.AddEdge(compose.START, Lambda2)
+	_ = g.AddEdge(Graph1, compose.END)
+	_ = g.AddBranch(Lambda2, compose.NewGraphBranch(newBranch, map[string]bool{compose.END: true, Graph1: true}))
+	r, err = g.Compile(ctx, compose.WithGraphName("agent"), compose.WithNodeTriggerMode(compose.AnyPredecessor))
+	if err != nil {
+		return nil, err
+	}
+	return r, err
+}
+
+func buildexport(ctx context.Context) (ag compose.AnyGraph, err error) {
 	const (
 		ToolsNode1             = "ToolsNode1"
 		TransformForEnd        = "TransformForEnd"
@@ -18,7 +52,7 @@ func Buildmytest2(ctx context.Context) (r compose.Runnable[[]*schema.Message, *s
 		TransformForModel      = "TransformForModel"
 		TransformForFirstModel = "TransformForFirstModel"
 	)
-	g := compose.NewGraph[[]*schema.Message, *schema.Message](compose.WithGenLocalState(func(ctx context.Context) (state *MyGraphState) {
+	g := compose.NewGraph[[]*schema.Message, []*schema.Message](compose.WithGenLocalState(func(ctx context.Context) (state *MyGraphState) {
 		return &MyGraphState{
 			Query: "",
 		}
@@ -32,7 +66,6 @@ func Buildmytest2(ctx context.Context) (r compose.Runnable[[]*schema.Message, *s
 	//	}
 	//	return s, nil
 	//}
-
 	toolsNode1KeyOfToolsNode, err := newToolsNode(ctx)
 	if err != nil {
 		return nil, err
@@ -77,9 +110,5 @@ func Buildmytest2(ctx context.Context) (r compose.Runnable[[]*schema.Message, *s
 	_ = g.AddEdge(TransformForRetriever, Retriever1)
 	_ = g.AddEdge(Retriever1, TransformForModel)
 	_ = g.AddEdge(TransformForModel, ChatModel6)
-	r, err = g.Compile(ctx, compose.WithGraphName("mytest2"), compose.WithNodeTriggerMode(compose.AnyPredecessor))
-	if err != nil {
-		return nil, err
-	}
-	return r, err
+	return g, err
 }
