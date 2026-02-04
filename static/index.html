@@ -74,8 +74,14 @@
 
         .user-message {
             margin-left: auto;
+            display: flex;
+            justify-content: flex-end;
         }
+
         .user-message .message-content {
+            max-width: 70%;
+            text-align: left;
+            white-space: pre-wrap;
             background: #2f54eb;
             color: white;
             padding: 12px 18px;
@@ -162,6 +168,7 @@
             border: 1px solid #e8e8e8;
             min-height: 44px;
             display: none; /* 初始隐藏，等有结果再显示 */
+
         }
 
         .message-content.show {
