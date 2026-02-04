@@ -1,4 +1,4 @@
-package main
+package kafka
 
 import (
 	"context"
@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"log"
 	"main/config"
-	"main/database"
+	"main/internal/database"
 	"os"
 	"os/signal"
 	"strings"

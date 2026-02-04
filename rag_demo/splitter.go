@@ -1,7 +1,8 @@
-package main
+package rag_demo
 
 import (
 	"context"
+
 	"github.com/cloudwego/eino-ext/components/document/transformer/splitter/markdown"
 )
 

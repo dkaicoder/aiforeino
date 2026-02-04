@@ -1,10 +1,10 @@
-package exportAi
+package repository
 
 import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"main/database"
+	"main/internal/database"
 
 	"github.com/cloudwego/eino/schema"
 	"github.com/redis/go-redis/v9"
@@ -32,10 +32,11 @@ func (c *ChatMessage) SaveChatMessage(ctx context.Context, sessionID string) err
 
 func (c *ChatMessage) GetChatHistory(ctx context.Context, sessionID string, pageSize int, offset int64) ([]ChatMessage, error) {
 	key := fmt.Sprintf("chat:%s", sessionID)
-	res, err := database.RedisDb.ZRange(ctx, key, offset, offset+int64(pageSize)-1).Result()
+	res, err := database.RedisDb.ZRevRange(ctx, key, offset, offset+int64(pageSize)-1).Result()
 	if err != nil {
 		return nil, err
 	}
+
 	msgs := make([]ChatMessage, 0, len(res))
 	for _, msgJSON := range res {
 		var msg ChatMessage
@@ -43,6 +44,10 @@ func (c *ChatMessage) GetChatHistory(ctx context.Context, sessionID string, page
 			continue
 		}
 		msgs = append(msgs, msg)
+	}
+
+	for i, j := 0, len(msgs)-1; i < j; i, j = i+1, j-1 {
+		msgs[i], msgs[j] = msgs[j], msgs[i]
 	}
 	return msgs, nil
 }

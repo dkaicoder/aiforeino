@@ -1,4 +1,4 @@
-package exportAi
+package export_graph
 
 type MyGraphState struct {
 	Query        string

@@ -1,9 +1,9 @@
-package exportAi
+package export_graph
 
 import (
 	"context"
 	"fmt"
-	"main/database"
+	"main/internal/database"
 
 	"github.com/cloudwego/eino-ext/components/retriever/redis"
 	"github.com/cloudwego/eino/components/retriever"

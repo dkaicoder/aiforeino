@@ -1,10 +1,10 @@
-package exportAi
+package export_graph
 
 import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"main/database"
+	"main/internal/database"
 	"time"
 
 	"github.com/cloudwego/eino/components/prompt"

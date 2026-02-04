@@ -1,4 +1,4 @@
-package exportAi
+package export_graph
 
 var systemPrompt = `
 # Role: SQL生成助手

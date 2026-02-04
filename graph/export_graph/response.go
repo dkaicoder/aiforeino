@@ -1,4 +1,4 @@
-package exportAi
+package export_graph
 
 type GraphChoice struct {
 	GraphType    string `json:"graph_type"`
