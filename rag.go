@@ -38,9 +38,9 @@ func InitRAGEngine(ctx context.Context, index string, prefix string) (*RAGEngine
 		return nil, err
 	}
 
-	//r.newLoader(ctx)
-	//r.newSplitter(ctx)
-	//r.newIndexer(ctx)
+	r.newLoader(ctx)
+	r.newSplitter(ctx)
+	r.newIndexer(ctx)
 	r.newRetriever(ctx)
 	//r.newChatModel(ctx)
 

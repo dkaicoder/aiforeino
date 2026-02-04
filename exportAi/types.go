@@ -1,4 +1,4 @@
-package jjf4
+package exportAi
 
 type MyGraphState struct {
 	Query        string

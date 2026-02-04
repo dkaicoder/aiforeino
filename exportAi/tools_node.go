@@ -1,7 +1,10 @@
-package jjf5
+package exportAi
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
+	"main/database"
 
 	"github.com/cloudwego/eino/components/tool"
 	"github.com/cloudwego/eino/compose"
@@ -39,9 +42,38 @@ func newTool(ctx context.Context) (bt tool.BaseTool, err error) {
 }
 
 func (impl *ToolImpl) Info(ctx context.Context) (*schema.ToolInfo, error) {
-	panic("implement me")
+	return &schema.ToolInfo{
+		Name: "sql_verifier",
+		Desc: "这是一个SQL校验工具，用于验证生成的SQL是否语法合法、逻辑正确、符合表结构",
+		ParamsOneOf: schema.NewParamsOneOfByParams(map[string]*schema.ParameterInfo{
+			"sql": {
+				Type:     schema.String,
+				Required: true,
+			},
+		}),
+	}, nil
 }
 
 func (impl *ToolImpl) InvokableRun(ctx context.Context, argumentsInJSON string, opts ...tool.Option) (string, error) {
-	panic("implement me")
+	sqlStruct := struct {
+		SQL string `json:"sql"`
+	}{}
+	res := struct {
+		Status int    `json:"status"`
+		Msg    string `json:"msg"`
+		Data   string `json:"data"`
+	}{}
+	json.Unmarshal([]byte(argumentsInJSON), &sqlStruct)
+	db := database.InitMysql(ctx)
+	sql := fmt.Sprintf("EXPLAIN %s", sqlStruct.SQL)
+	fmt.Println(sql)
+	err := db.Raw(sql).Error
+	if err != nil {
+		return "", fmt.Errorf("SQL 语法错误: %v\n", err)
+	}
+	res.Status = 200
+	res.Msg = "success"
+	res.Data = sqlStruct.SQL
+	js, _ := json.Marshal(res)
+	return string(js), nil
 }

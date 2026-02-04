@@ -1,4 +1,4 @@
-package jjf4
+package exportAi
 
 var systemPrompt = `
 # Role: SQL生成助手
@@ -25,6 +25,7 @@ Goal:
   4.  非关键字表名（如 user_player）保持原始格式，无需额外转义。
 # 检索文档：
 {documents}
+最后去调用sql_verifier这个tool接口
 `
 
 var userPrompt = `

@@ -1,4 +1,4 @@
-package jjf5
+package exportAi
 
 import (
 	"context"
@@ -12,7 +12,7 @@ func newChatModel(ctx context.Context) (cm model.ChatModel, err error) {
 	// TODO Modify component configuration here.
 	config := &ark.ChatModelConfig{
 		APIKey: "358ad2c2-9d3b-4990-92c7-117cf25fdae3",
-		Model:  "doubao-seed-1-6-251015"}
+		Model:  "doubao-1-5-pro-32k-250115"}
 	cm, err = ark.NewChatModel(ctx, config)
 	if err != nil {
 		return nil, err
@@ -20,12 +20,11 @@ func newChatModel(ctx context.Context) (cm model.ChatModel, err error) {
 	return cm, nil
 }
 
-// newChatModel1 component initialization function of node 'ChatModel6' in graph 'mytest2'
-func newChatModel1(ctx context.Context) (cm model.ChatModel, err error) {
+func newChatModelDoubao15pro(ctx context.Context) (cm model.ChatModel, err error) {
 	// TODO Modify component configuration here.
 	config := &ark.ChatModelConfig{
 		APIKey: "358ad2c2-9d3b-4990-92c7-117cf25fdae3",
-		Model:  "doubao-seed-1-6-251015"}
+		Model:  "doubao-1-5-pro-32k-250115"}
 	cm, err = ark.NewChatModel(ctx, config)
 	if err != nil {
 		return nil, err

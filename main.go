@@ -3,11 +3,11 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log"
-	"main/database"
-	"main/jjf4"
+	"main/exportAi"
 	"net/http"
 	"strings"
 	"sync"
@@ -16,9 +16,12 @@ import (
 	"github.com/cloudwego/eino-ext/callbacks/langfuse"
 	"github.com/cloudwego/eino-ext/components/model/ark"
 	"github.com/cloudwego/eino/callbacks"
-	"github.com/cloudwego/eino/components/prompt"
+	"github.com/cloudwego/eino/components/document"
+	"github.com/cloudwego/eino/components/tool"
 	"github.com/cloudwego/eino/compose"
+	"github.com/cloudwego/eino/flow/agent/react"
 	"github.com/cloudwego/eino/schema"
+	uuid2 "github.com/google/uuid"
 )
 
 const (
@@ -26,20 +29,96 @@ const (
 	index  = "OuterIndex"
 )
 
-func jjf4sss(ctx context.Context, exportTaskID string, msgChan chan string, questing string) {
+type ProgressEmitter interface {
+	Emit(msg string)
+}
+type progressKeyType struct{}
+
+var progressKey = progressKeyType{}
+
+func WithProgressEmitter(
+	ctx context.Context,
+	emitter ProgressEmitter,
+) context.Context {
+	return context.WithValue(ctx, progressKey, emitter)
+}
+
+func GetProgressEmitter(ctx context.Context) (ProgressEmitter, bool) {
+	emitter, ok := ctx.Value(progressKey).(ProgressEmitter)
+	return emitter, ok
+}
+
+type LogEmitter struct {
+	w       http.ResponseWriter
+	flusher http.Flusher
+}
+
+func (l *LogEmitter) Emit(msg string) {
+	fmt.Fprint(l.w, msg)
+	l.flusher.Flush()
+}
+
+type exportTool struct{}
+
+func (e *exportTool) Info(ctx context.Context) (*schema.ToolInfo, error) {
+	return &schema.ToolInfo{
+		Name: "数据导出工具",
+		Desc: "当用户需要导出业务数据为Excel文件时使用。触发场景包括：用户提到订单、玩法、用户、导出、下载、Excel等关键词，或明确提出导出需求。示例：“帮我导出这个月的订单列表”、“我要下载用户数据Excel”、“把所有玩法配置导出来”。该工具将数据库表数据导出为Excel文件。",
+		ParamsOneOf: schema.NewParamsOneOfByParams(map[string]*schema.ParameterInfo{
+			"desc": {
+				Desc:     "用户的原始导出需求描述，用于向量数据库检索匹配的业务表与导出规则。",
+				Type:     schema.String,
+				Required: false,
+			},
+			"graph_type": {
+				Desc:     "图谱类型，固定值“export”。",
+				Type:     schema.String,
+				Required: false,
+			},
+			"export_task_id": {
+				Desc:     "随机生成的导出任务ID，用于标识本次导出请求。",
+				Type:     schema.String,
+				Required: false,
+			},
+		}),
+	}, nil
+}
+
+func (e *exportTool) InvokableRun(ctx context.Context, argumentsInJSON string, opts ...tool.Option) (string, error) {
+	msgChan := make(chan string, 100)
+	exportTaskID := fmt.Sprintf("export_%d", time.Now().Unix())
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		for msg := range msgChan {
+			if emitter, ok := GetProgressEmitter(ctx); ok {
+				emitter.Emit(msg)
+			}
+		}
+	}()
+	go func(exportTaskID string) {
+		defer close(msgChan)
+		jjf4sss(ctx, exportTaskID, msgChan, argumentsInJSON)
+	}(exportTaskID)
+	wg.Wait()
+	return `{"code":200,"msg":"导出成功"}`, nil
+}
+
+func jjf4sss(ctx context.Context, exportTaskID string, msgChan chan string, questing string) []*schema.Message {
 	cbh, flusher := langfuse.NewLangfuseHandler(&langfuse.Config{
 		Host:      "https://us.cloud.langfuse.com",
 		PublicKey: "pk-lf-8f9c06d7-b5ff-48ed-a559-e0e04d197e88",
 		SecretKey: "sk-lf-9d1c1bf0-6458-41a2-aa40-9a5b56015c06",
 	})
 	callbacks.AppendGlobalHandlers(cbh)
-	r, err := jjf4.Buildmytest2(ctx)
+	r, err := exportAi.Buildmytest2(ctx)
 	if err != nil {
 		fmt.Printf("编译Graph流程失败：%v\n", err)
-		return
+		return nil
 	}
 
-	messageBody := jjf4.GraphChoice{}
+	messageBody := exportAi.GraphChoice{}
 	json.Unmarshal([]byte(questing), &messageBody)
 	messageBody.ExportTaskID = exportTaskID
 	questings, _ := json.Marshal(messageBody)
@@ -63,7 +142,7 @@ func jjf4sss(ctx context.Context, exportTaskID string, msgChan chan string, ques
 			return ctx
 		}).
 		Build()
-	_, err = r.Invoke(ctx, maps, compose.WithCallbacks(handler))
+	ree, err := r.Invoke(ctx, maps, compose.WithCallbacks(handler))
 	if err != nil {
 		msg := strings.ReplaceAll(err.Error(), "\n", " | ")
 		sseMsg := fmt.Sprintf(
@@ -80,6 +159,7 @@ func jjf4sss(ctx context.Context, exportTaskID string, msgChan chan string, ques
 		msgChan <- sseMsg
 	}
 	flusher()
+	return ree
 }
 
 func graphEndSaveRes(ctx context.Context, content string) (err error) {
@@ -124,6 +204,7 @@ func getChatHistory(ctx context.Context, question string) (output []*schema.Mess
 	}
 	return output, nil
 }
+
 func buildSSEEvent(eventType string, taskID string, node string, status string) string {
 	progress := map[string]any{
 		"task_id": taskID,
@@ -158,7 +239,7 @@ func frontChatModel(ctx context.Context, question string) string {
 }
 
 // 大模型聊天
-func bigChatModel(ctx context.Context, question string) *schema.StreamReader[*schema.Message] {
+func bigChatModel(ctx context.Context, question string, w http.ResponseWriter, flusher http.Flusher) *schema.StreamReader[*schema.Message] {
 	chatModel, err := ark.NewChatModel(ctx, &ark.ChatModelConfig{
 		APIKey: "358ad2c2-9d3b-4990-92c7-117cf25fdae3",
 		Model:  "doubao-seed-1-6-251015",
@@ -166,33 +247,50 @@ func bigChatModel(ctx context.Context, question string) *schema.StreamReader[*sc
 	if err != nil {
 		panic(err)
 	}
-	getChatHistoryFunc, err := getChatHistory(ctx, question)
-	if err != nil {
-		log.Fatalf("获取历史对话失败: %v", err)
+	emitter := &LogEmitter{
+		w:       w,
+		flusher: flusher,
 	}
-	template := prompt.FromMessages(schema.FString,
-		schema.SystemMessage(roleForBigModel()),
-		schema.MessagesPlaceholder("chat_history", true),
-		schema.UserMessage("问题: {question}"),
-	)
-	var toolList = map[string]string{
-		"export": "导出数据库表数据到excel文件",
+	execCtx := WithProgressEmitter(ctx, emitter)
+	toolList := []tool.BaseTool{
+		&exportTool{},
 	}
-	toolDesc := "支持的工具列表：\n"
-	for t, desc := range toolList {
-		toolDesc += fmt.Sprintf("- %s：%s\n", t, desc)
-	}
-	messages, err := template.Format(context.Background(), map[string]any{
-		//"tool_list":    toolDesc,
-		"question":     question,
-		"chat_history": getChatHistoryFunc,
+	agent, err := react.NewAgent(ctx, &react.AgentConfig{
+		ToolCallingModel: chatModel,
+		ToolsConfig:      compose.ToolsNodeConfig{Tools: toolList},
 	})
-	streamResult, err := chatModel.Stream(ctx, messages)
-	if err != nil || streamResult == nil {
-		log.Fatalf("创建流失败: %v", err)
-	}
+	streamResult, err := agent.Stream(execCtx, []*schema.Message{
+		schema.UserMessage(question),
+	})
+
+	//getChatHistoryFunc, err := getChatHistory(ctx, question)
+	//if err != nil {
+	//	log.Fatalf("获取历史对话失败: %v", err)
+	//}
+	//template := prompt.FromMessages(schema.FString,
+	//	schema.SystemMessage(roleForBigModel()),
+	//	schema.MessagesPlaceholder("chat_history", true),
+	//	schema.UserMessage("问题: {question}"),
+	//)
+	//var toolList = map[string]string{
+	//	"export": "导出数据库表数据到excel文件",
+	//}
+	//toolDesc := "支持的工具列表：\n"
+	//for t, desc := range toolList {
+	//	toolDesc += fmt.Sprintf("- %s：%s\n", t, desc)
+	//}
+	//messages, err := template.Format(context.Background(), map[string]any{
+	//	//"tool_list":    toolDesc,
+	//	"question":     question,
+	//	"chat_history": getChatHistoryFunc,
+	//})
+	//streamResult, err := chatModel.Stream(ctx, messages)
+	//if err != nil || streamResult == nil {
+	//	log.Fatalf("创建流失败: %v", err)
+	//}
 	return streamResult
 }
+
 func roleForBigModel() string {
 	var userPrompt = `
 	Role: 智能助手（兼工具识别与对话）
@@ -234,6 +332,7 @@ func roleForFrontModel() string {
 }
 
 func streamHandler(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
 	// 设置响应头
 	w.Header().Set("Content-Type", "text/event-stream")
 	w.Header().Set("Cache-Control", "no-cache")
@@ -244,59 +343,37 @@ func streamHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Streaming unsupported!", http.StatusInternalServerError)
 		return
 	}
-	ctx := context.Background()
-	stream := bigChatModel(ctx, question)
+
+	stream := bigChatModel(ctx, question, w, flusher)
 	defer stream.Close()
 
-	//前置模型判断用户需求
-	pdRe := frontChatModel(ctx, question)
-	if len(pdRe) > 10 {
-		msgChan := make(chan string, 100)
-		exportTaskID := fmt.Sprintf("export_%d", time.Now().Unix())
-		var wg sync.WaitGroup
-		wg.Add(1)
-		go func() {
-			fmt.Fprint(w, "data: 正在处理您的导出请求，请稍候...\n\n")
-			for msg := range msgChan {
-				fmt.Fprint(w, msg)
-				flusher.Flush()
-			}
-		}()
-		go func(exportTaskID string) {
-			defer close(msgChan)
-			jjf4sss(ctx, exportTaskID, msgChan, pdRe)
-		}(exportTaskID)
-		wg.Wait()
-	} else {
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
-		var reposeAnswer string
-		for {
-			response, err := stream.Recv()
-			if err != nil {
-				if err == io.EOF {
-					break
-				}
-				fmt.Fprintf(w, "data: Error: %v\n\n", err)
-				flusher.Flush()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	var reposeAnswer string
+	for {
+		response, err := stream.Recv()
+		if err != nil {
+			if errors.Is(err, io.EOF) {
 				break
 			}
-			reposeAnswer += response.Content
-			fmt.Fprintf(w, "data: %s\n\n", response.Content)
+			fmt.Fprintf(w, "data: Error: %v\n\n", err)
 			flusher.Flush()
-
+			break
 		}
-		messageId := fmt.Sprintf("%d%d", time.Now().UnixNano(), time.Now().UnixNano()%1000)
-		chatMessage := &ChatMessage{
-			MsgID:     messageId,
-			Role:      schema.Assistant,
-			Content:   reposeAnswer,
-			Timestamp: time.Now().Unix(),
-		}
-		err := chatMessage.SaveChatMessage(ctx, "session_12345")
-		if err != nil {
-			log.Fatalf("保存消息失败：%v", err)
-		}
+		reposeAnswer += response.Content
+		fmt.Fprintf(w, "data: %s\n\n", response.Content)
+		flusher.Flush()
+	}
+	messageId := fmt.Sprintf("%d%d", time.Now().UnixNano(), time.Now().UnixNano()%1000)
+	chatMessage := &ChatMessage{
+		MsgID:     messageId,
+		Role:      schema.Assistant,
+		Content:   reposeAnswer,
+		Timestamp: time.Now().Unix(),
+	}
+	err := chatMessage.SaveChatMessage(ctx, "session_12345")
+	if err != nil {
+		log.Fatalf("保存消息失败：%v", err)
 	}
 }
 
@@ -316,53 +393,49 @@ func getHis(w http.ResponseWriter, r *http.Request) {
 
 func main() {
 	ctx := context.Background()
-	database.InitRedis(ctx)
-	database.InitMysql(ctx)
-	//ctx := context.Background()
-	//jjf4sss(ctx)
-	//bigChatModel(ctx)
-	fileServer := http.FileServer(http.Dir("static"))
-	http.Handle("/", fileServer)
-	http.HandleFunc("/chat/history", getHis)
-	http.HandleFunc("/stream", streamHandler)
-	http.ListenAndServe(":8080", nil)
-	//kafkas()
-	//ttttt()
-	//re()
-	////tool.Tool(ctx)
-	//
-	//r, err := InitRAGEngine(ctx, index, prefix)
-	//if err != nil {
-	//	panic(err)
-	//}
+	//database.InitRedis(ctx)
+	//database.InitMysql(ctx)
+	//fileServer := http.FileServer(http.Dir("static"))
+	//http.Handle("/", fileServer)
+	//http.HandleFunc("/chat/history", getHis)
+	//http.HandleFunc("/stream", streamHandler)
+	//http.ListenAndServe(":8080", nil)
+	save(ctx)
+}
 
-	//doc, err := r.Loader.Load(ctx, document.Source{
-	//	URI: "./test_txt/mysql-1.md",
-	//})
-	//if err != nil {
-	//	panic(err)
-	//}
-	//
-	//docs, err := r.Splitter.Transform(ctx, doc)
-	//if err != nil {
-	//	panic(err)
-	//}
-	//
-	//for _, d := range docs {
-	//	uuid, _ := uuid2.NewUUID()
-	//	d.ID = uuid.String()
-	//}
-	//
-	//err = r.InitVectorIndex(ctx)
-	//if err != nil {
-	//	panic(err)
-	//}
-	//
-	//_, err = r.Indexer.Store(ctx, docs)
-	//if err != nil {
-	//	panic(err)
-	//}
-	//
+func save(ctx context.Context) {
+	r, err := InitRAGEngine(ctx, index, prefix)
+	if err != nil {
+		panic(err)
+	}
+
+	doc, err := r.Loader.Load(ctx, document.Source{
+		URI: "./information/mysql-1.md",
+	})
+	if err != nil {
+		panic(err)
+	}
+
+	docs, err := r.Splitter.Transform(ctx, doc)
+	if err != nil {
+		panic(err)
+	}
+
+	for _, d := range docs {
+		uuid, _ := uuid2.NewUUID()
+		d.ID = uuid.String()
+	}
+
+	err = r.InitVectorIndex(ctx)
+	if err != nil {
+		panic(err)
+	}
+
+	_, err = r.Indexer.Store(ctx, docs)
+	if err != nil {
+		panic(err)
+	}
+
 	//var query string
 	//for {
 	//	_, _ = fmt.Scan(&query)

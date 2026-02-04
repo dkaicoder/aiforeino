@@ -1,0 +1,14 @@
+APIKey: "your-api-key-here"
+Embedding: "your-embedding-model-here"
+ChatModel: "your-chat-model-here"
+Redis:
+    Host: "127.0.0.1"
+    Port: 6379
+    DB: 0
+Mysql:
+    Host: "
+    Port: 3306
+    User: "your-username-here"
+    Password: "your-password-here"
+    Database: "your-database-name-here"
+    Charset: "utf8mb4"
