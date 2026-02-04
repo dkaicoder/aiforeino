@@ -2,18 +2,14 @@ package exportAi
 
 import (
 	"context"
+	"main/pkg/ai"
 
-	"github.com/cloudwego/eino-ext/components/model/ark"
 	"github.com/cloudwego/eino/components/model"
 )
 
 // newChatModel component initialization function of node 'ChatModel5' in graph 'mytest2'
 func newChatModel(ctx context.Context) (cm model.ChatModel, err error) {
-	// TODO Modify component configuration here.
-	config := &ark.ChatModelConfig{
-		APIKey: "358ad2c2-9d3b-4990-92c7-117cf25fdae3",
-		Model:  "doubao-1-5-pro-32k-250115"}
-	cm, err = ark.NewChatModel(ctx, config)
+	cm, err = ai.NewChatModelFactory(ctx, "doubao-1-5-pro-32k-250115")
 	if err != nil {
 		return nil, err
 	}
@@ -21,11 +17,7 @@ func newChatModel(ctx context.Context) (cm model.ChatModel, err error) {
 }
 
 func newChatModelDoubao15pro(ctx context.Context) (cm model.ChatModel, err error) {
-	// TODO Modify component configuration here.
-	config := &ark.ChatModelConfig{
-		APIKey: "358ad2c2-9d3b-4990-92c7-117cf25fdae3",
-		Model:  "doubao-1-5-pro-32k-250115"}
-	cm, err = ark.NewChatModel(ctx, config)
+	cm, err = ai.NewChatModelFactory(ctx, "doubao-1-5-pro-32k-250115")
 	if err != nil {
 		return nil, err
 	}

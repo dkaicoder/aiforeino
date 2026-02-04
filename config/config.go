@@ -1,14 +1,14 @@
 package config
 
 import (
-	"github.com/spf13/viper"
 	"os"
 	"sync"
+
+	"github.com/spf13/viper"
 )
 
 type ParamsConfig struct {
 	ApiKey    string `mapstructure:"APIKey"`
-	Endpoint  string `mapstructure:"Endpoint"`
 	Embedding string `mapstructure:"Embedding"`
 	ChatModel string `mapstructure:"ChatModel"`
 	Redis     struct {
@@ -16,13 +16,24 @@ type ParamsConfig struct {
 		Port int    `mapstructure:"Port"`
 		DB   int    `mapstructure:"DB"`
 	} `mapstructure:"Redis"`
+	Mysql struct {
+		Host     string `mapstructure:"Host"`
+		Port     int    `mapstructure:"Port"`
+		User     string `mapstructure:"User"`
+		Password string `mapstructure:"Password"`
+		Database string `mapstructure:"Database"`
+	} `mapstructure:"Mysql"`
+	Kafka struct {
+		Brokers string `mapstructure:"Brokers"`
+		Topic   string `mapstructure:"Topic"`
+	} `mapstructure:"Kafka"`
 }
 
 var once sync.Once
 
-var c *ParamsConfig
+var C *ParamsConfig
 
-func Map() *ParamsConfig {
+func InitConfig() *ParamsConfig {
 	once.Do(func() {
 		v := viper.New()
 		file, err := os.Open("config/config.yml")
@@ -35,12 +46,16 @@ func Map() *ParamsConfig {
 			panic(err)
 		}
 
-		err = v.Unmarshal(&c)
+		err = v.Unmarshal(&C)
 		if err != nil {
 			panic(err)
 		}
 
 		return
 	})
-	return c
+	return C
+}
+
+func GetConfig() *ParamsConfig {
+	return C
 }

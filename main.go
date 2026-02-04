@@ -7,7 +7,10 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"main/config"
+	"main/database"
 	"main/exportAi"
+	"main/pkg/ai"
 	"net/http"
 	"strings"
 	"sync"
@@ -240,10 +243,7 @@ func frontChatModel(ctx context.Context, question string) string {
 
 // 大模型聊天
 func bigChatModel(ctx context.Context, question string, w http.ResponseWriter, flusher http.Flusher) *schema.StreamReader[*schema.Message] {
-	chatModel, err := ark.NewChatModel(ctx, &ark.ChatModelConfig{
-		APIKey: "358ad2c2-9d3b-4990-92c7-117cf25fdae3",
-		Model:  "doubao-seed-1-6-251015",
-	})
+	chatModel, err := ai.NewChatModelFactory(ctx, "doubao-seed-1-6-251015")
 	if err != nil {
 		panic(err)
 	}
@@ -259,9 +259,21 @@ func bigChatModel(ctx context.Context, question string, w http.ResponseWriter, f
 		ToolCallingModel: chatModel,
 		ToolsConfig:      compose.ToolsNodeConfig{Tools: toolList},
 	})
-	streamResult, err := agent.Stream(execCtx, []*schema.Message{
-		schema.UserMessage(question),
-	})
+
+	getChatHistoryFunc, err := getChatHistory(ctx, question)
+	if err != nil {
+		log.Fatalf("获取历史对话失败: %v", err)
+	}
+	userQ := &schema.Message{
+		Role:    schema.User,
+		Content: question,
+	}
+	system := &schema.Message{
+		Role:    schema.System,
+		Content: "你是一个精简回答助手，所有回答都要简洁明了，控制在100字以内，只输出核心结论，避免冗余解释。",
+	}
+	getChatHistoryFunc = append(getChatHistoryFunc, userQ, system)
+	streamResult, err := agent.Stream(execCtx, getChatHistoryFunc)
 
 	//getChatHistoryFunc, err := getChatHistory(ctx, question)
 	//if err != nil {
@@ -393,14 +405,15 @@ func getHis(w http.ResponseWriter, r *http.Request) {
 
 func main() {
 	ctx := context.Background()
-	//database.InitRedis(ctx)
-	//database.InitMysql(ctx)
-	//fileServer := http.FileServer(http.Dir("static"))
-	//http.Handle("/", fileServer)
-	//http.HandleFunc("/chat/history", getHis)
-	//http.HandleFunc("/stream", streamHandler)
-	//http.ListenAndServe(":8080", nil)
-	save(ctx)
+	configs := config.InitConfig()
+	database.Init(configs)
+	database.InitRedis(ctx)
+	database.InitMysql(ctx)
+	fileServer := http.FileServer(http.Dir("static"))
+	http.Handle("/", fileServer)
+	http.HandleFunc("/chat/history", getHis)
+	http.HandleFunc("/stream", streamHandler)
+	http.ListenAndServe(":8080", nil)
 }
 
 func save(ctx context.Context) {

@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"main/config"
 	"main/database"
 	"os"
 	"os/signal"
@@ -28,7 +29,8 @@ var exportWg sync.WaitGroup
 func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-
+	configs := config.InitConfig()
+	database.Init(configs)
 	db := database.InitMysql(ctx)
 	export := NewExportDataBase(db)
 

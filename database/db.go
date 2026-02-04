@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"main/config"
 
 	redis2 "github.com/redis/go-redis/v9"
 	"github.com/segmentio/kafka-go"
@@ -15,10 +16,16 @@ var RedisDb *redis2.Client
 var MysqlDb *gorm.DB
 var kafkaConn *kafka.Conn
 
+var globalConfig *config.ParamsConfig
+
+func Init(cfg *config.ParamsConfig) {
+	globalConfig = cfg
+}
+
 func InitRedis(ctx context.Context) *redis2.Client {
 	if RedisDb == nil {
 		rdb := redis2.NewClient(&redis2.Options{
-			Addr:          fmt.Sprintf("%s:%d", "127.0.0.1", 6379),
+			Addr:          fmt.Sprintf("%s:%d", globalConfig.Redis.Host, globalConfig.Redis.Port),
 			Protocol:      2,
 			UnstableResp3: true,
 		})
@@ -35,7 +42,12 @@ func InitRedis(ctx context.Context) *redis2.Client {
 
 func InitMysql(ctx context.Context) *gorm.DB {
 	if MysqlDb == nil {
-		dsn := "root:root@tcp(127.0.0.1:3306)/lw_match?charset=utf8mb4&parseTime=True&loc=Local"
+		dsn := fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?charset=utf8mb4&parseTime=True&loc=Local",
+			globalConfig.Mysql.User,
+			globalConfig.Mysql.Password,
+			globalConfig.Mysql.Host,
+			globalConfig.Mysql.Port,
+			globalConfig.Mysql.Database)
 		db, err := gorm.Open(mysql.Open(dsn), &gorm.Config{
 			PrepareStmt: true,
 		})
@@ -50,9 +62,9 @@ func InitMysql(ctx context.Context) *gorm.DB {
 
 func InitKafkaForProducer(ctx context.Context) *kafka.Conn {
 	if kafkaConn == nil {
-		topic := "my-topic"
+		topic := globalConfig.Kafka.Topic
 		partition := 0
-		conn, err := kafka.DialLeader(context.Background(), "tcp", "localhost:9092", topic, partition)
+		conn, err := kafka.DialLeader(context.Background(), "tcp", globalConfig.Kafka.Brokers, topic, partition)
 		if err != nil {
 			log.Fatal("failed to dial leader:", err)
 		}
@@ -63,8 +75,8 @@ func InitKafkaForProducer(ctx context.Context) *kafka.Conn {
 
 func InitKafkaForConsumer(ctx context.Context) *kafka.Reader {
 	r := kafka.NewReader(kafka.ReaderConfig{
-		Brokers:   []string{"localhost:9092"},
-		Topic:     "my-topic",
+		Brokers:   []string{globalConfig.Kafka.Brokers},
+		Topic:     globalConfig.Kafka.Topic,
 		Partition: 0,
 		MaxBytes:  10e6, // 10MB
 		GroupID:   "my-first-kafka-consumer-group",
