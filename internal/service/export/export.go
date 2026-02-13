@@ -12,7 +12,6 @@ import (
 	"main/pkg/ai"
 	"main/pkg/common"
 	"net/http"
-	"strings"
 	"sync"
 	"time"
 
@@ -27,7 +26,7 @@ import (
 type ExportService struct {
 }
 
-func (e *ExportService) AiChatDo(ctx context.Context, exportTaskID string, msgChan chan string, questing string) []*schema.Message {
+func (e *ExportService) AiChatDo(ctx context.Context, exportTaskID string, msgChan chan string, questing string) ([]*schema.Message, error) {
 	cbh, flusher := langfuse.NewLangfuseHandler(&langfuse.Config{
 		Host:      "https://us.cloud.langfuse.com",
 		PublicKey: "pk-lf-8f9c06d7-b5ff-48ed-a559-e0e04d197e88",
@@ -37,9 +36,9 @@ func (e *ExportService) AiChatDo(ctx context.Context, exportTaskID string, msgCh
 	r, err := exportgraph2.Buildmytest2(ctx)
 	if err != nil {
 		fmt.Printf("编译Graph流程失败：%v\n", err)
-		return nil
+		return nil, err
 	}
-
+	defer close(msgChan)
 	messageBody := exportgraph2.GraphChoice{}
 	json.Unmarshal([]byte(questing), &messageBody)
 	messageBody.ExportTaskID = exportTaskID
@@ -66,22 +65,14 @@ func (e *ExportService) AiChatDo(ctx context.Context, exportTaskID string, msgCh
 		Build()
 	ree, err := r.Invoke(ctx, maps, compose.WithCallbacks(handler))
 	if err != nil {
-		msg := strings.ReplaceAll(err.Error(), "\n", " | ")
-		sseMsg := fmt.Sprintf(
-			"event: progress\ndata: {\"task_id\":\"%s\",\"status\":\"error\",\"msg\":\"%s\"}\n\n",
-			exportTaskID,
-			msg,
-		)
-		e.graphEndSaveRes(ctx, err.Error())
-		msgChan <- sseMsg
-	} else {
-		url := "http://127.0.0.1:8080/" + exportTaskID + ".xlsx"
-		sseMsg := fmt.Sprintf("event: progress\ndata: {\"task_id\":\"%s\",\"status\":\"completed\",\"url\":\"%s\"}\n\n", exportTaskID, url)
-		e.graphEndSaveRes(ctx, url)
-		msgChan <- sseMsg
+		return nil, err
 	}
+	url := "http://192.168.3.182:8080/" + exportTaskID + ".xlsx"
+	sseMsg := fmt.Sprintf("event: progress\ndata: {\"task_id\":\"%s\",\"status\":\"completed\",\"url\":\"%s\"}\n\n", exportTaskID, url)
+	//	e.graphEndSaveRes(ctx, url)
+	msgChan <- sseMsg
 	flusher()
-	return ree
+	return ree, nil
 }
 
 func (e *ExportService) graphEndSaveRes(ctx context.Context, content string) (err error) {
@@ -140,7 +131,7 @@ func (e *ExportService) buildSSEEvent(eventType string, taskID string, node stri
 
 // 大模型聊天
 func (e *ExportService) bigChatModel(ctx context.Context, question string, w http.ResponseWriter, flusher http.Flusher) *schema.StreamReader[*schema.Message] {
-	chatModel, err := ai.NewChatModelFactory(ctx, "doubao-seed-1-6-251015")
+	chatModel, err := ai.NewChatModelFactory(ctx, "doubao-1-5-pro-32k-250115")
 	if err != nil {
 		panic(err)
 	}
@@ -165,60 +156,19 @@ func (e *ExportService) bigChatModel(ctx context.Context, question string, w htt
 		Role:    schema.User,
 		Content: question,
 	}
+	prompt := `
+		1. 你是一个精简回答助手，所有回答都要简洁明了，控制在100字以内，只输出核心结论，避免冗余解释。
+		2. 当你调用工具后，如果工具返回的结果中包含 "status": "completed"这意味着任务已经圆满完成并且立即停止调用任何工具，直接基于工具返回的结果整理成自然语言回复。
+		3. 当你调用工具后，如果工具返回的结果中包含 "status": "error"这意味着任务执行过程中出现了问题，基于工具返回的错误信息进行简要分析并回复用户。
+	  `
+
 	system := &schema.Message{
 		Role:    schema.System,
-		Content: "你是一个精简回答助手，所有回答都要简洁明了，控制在100字以内，只输出核心结论，避免冗余解释。",
+		Content: prompt,
 	}
 	getChatHistoryFunc = append(getChatHistoryFunc, userQ, system)
 	streamResult, err := agent.Stream(execCtx, getChatHistoryFunc)
-
-	//getChatHistoryFunc, err := getChatHistory(ctx, question)
-	//if err != nil {
-	//	log.Fatalf("获取历史对话失败: %v", err)
-	//}
-	//template := prompt.FromMessages(schema.FString,
-	//	schema.SystemMessage(roleForBigModel()),
-	//	schema.MessagesPlaceholder("chat_history", true),
-	//	schema.UserMessage("问题: {question}"),
-	//)
-	//var toolList = map[string]string{
-	//	"export": "导出数据库表数据到excel文件",
-	//}
-	//toolDesc := "支持的工具列表：\n"
-	//for t, desc := range toolList {
-	//	toolDesc += fmt.Sprintf("- %s：%s\n", t, desc)
-	//}
-	//messages, err := template.Format(context.Background(), map[string]any{
-	//	//"tool_list":    toolDesc,
-	//	"question":     question,
-	//	"chat_history": getChatHistoryFunc,
-	//})
-	//streamResult, err := chatModel.Stream(ctx, messages)
-	//if err != nil || streamResult == nil {
-	//	log.Fatalf("创建流失败: %v", err)
-	//}
 	return streamResult
-}
-
-func (e *ExportService) roleForFrontModel() string {
-	var userPrompt = `
-		# Role: 前置需求判断助手
-		## 核心目标
-		判断用户提问是否包含**导出/数据查询需求**，仅返回符合要求的 JSON 格式，无需求时返回空字符串。
-		
-		### 判定条件（必须同时满足）
-		1.  用户提问包含关键词：导出、数据、明细、订单、玩法、报表、下载、查询、统计、分析
-		2.  用户提问包含限定词：时间、用户、订单号、范围
-		
-		> 注：若缺少限定词，需返回「请补充需要导出的具体信息」
-		
-		### 输出格式要求
-		- 要么必须返回完整 JSON，无任何前缀、解释或 markdown或者要么返回空字符串
-		- 禁止返回自然语言
-		- JSON 格式：
-		{"graph_type":"export","desc":"一句话概括用户需求，用于后续查询"}
-`
-	return userPrompt
 }
 
 func (e *ExportService) StreamHandler(w http.ResponseWriter, r *http.Request) {
@@ -286,7 +236,8 @@ type ExportTool struct{}
 func (e *ExportTool) Info(ctx context.Context) (*schema.ToolInfo, error) {
 	return &schema.ToolInfo{
 		Name: "数据导出工具",
-		Desc: "当用户需要导出业务数据为Excel文件时使用。触发场景包括：用户提到订单、玩法、用户、导出、下载、Excel等关键词，或明确提出导出需求。示例：“帮我导出这个月的订单列表”、“我要下载用户数据Excel”、“把所有玩法配置导出来”。该工具将数据库表数据导出为Excel文件。",
+		Desc: "当用户需要导出业务数据为Excel文件时使用。触发场景包括：用户提到订单、玩法、用户、导出、下载、Excel等关键词，或明确提出导出需求。示例：“帮我导出这个月的订单列表”、“我要下载用户数据Excel”、“把所有玩法配置导出来”。该工具将数据库表数据导出为Excel文件。" +
+			"目前仅能导出玩法、账单、和用户资料数据，要求导出其他直接回复暂不支持",
 		ParamsOneOf: schema.NewParamsOneOfByParams(map[string]*schema.ParameterInfo{
 			"desc": {
 				Desc:     "用户的原始导出需求描述，用于向量数据库检索匹配的业务表与导出规则。",
@@ -298,18 +249,19 @@ func (e *ExportTool) Info(ctx context.Context) (*schema.ToolInfo, error) {
 				Type:     schema.String,
 				Required: false,
 			},
-			"export_task_id": {
-				Desc:     "随机生成的导出任务ID，用于标识本次导出请求。",
-				Type:     schema.String,
-				Required: false,
-			},
 		}),
 	}, nil
 }
 
+type ToolResult struct {
+	Status string `json:"status"`
+	TaskID string `json:"task_id"`
+	Msg    string `json:"msg"`
+}
+
 func (e *ExportTool) InvokableRun(ctx context.Context, argumentsInJSON string, opts ...tool.Option) (string, error) {
 	exportService := &ExportService{}
-	msgChan := make(chan string, 100)
+	msgChan := make(chan string, 10)
 	exportTaskID := fmt.Sprintf("export_%d", time.Now().Unix())
 	var wg sync.WaitGroup
 	wg.Add(1)
@@ -321,10 +273,18 @@ func (e *ExportTool) InvokableRun(ctx context.Context, argumentsInJSON string, o
 			}
 		}
 	}()
-	go func(exportTaskID string) {
-		defer close(msgChan)
-		exportService.AiChatDo(ctx, exportTaskID, msgChan, argumentsInJSON)
-	}(exportTaskID)
+
+	_, err := exportService.AiChatDo(ctx, exportTaskID, msgChan, argumentsInJSON)
+	res := &ToolResult{}
+	res.TaskID = exportTaskID
+	if err != nil {
+		res.Msg = err.Error()
+		res.Status = "error"
+	} else {
+		res.Msg = "导出任务已成功完成，文件可通过以下链接下载：http://192.168.3.182:8080/" + exportTaskID + ".xlsx"
+		res.Status = "completed"
+	}
 	wg.Wait()
-	return `{"code":200,"msg":"导出成功"}`, nil
+	jsonBytes, _ := json.Marshal(res)
+	return string(jsonBytes), nil
 }

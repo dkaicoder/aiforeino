@@ -2,11 +2,15 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"main/config"
 	"main/internal/database"
 	"main/internal/service/export"
 	"main/rag_demo"
 	"net/http"
+	"time"
+
+	_ "net/http/pprof"
 
 	"github.com/cloudwego/eino/components/document"
 	uuid2 "github.com/google/uuid"
@@ -26,10 +30,19 @@ func main() {
 
 	exportService := export.ExportService{}
 	fileServer := http.FileServer(http.Dir("static"))
-	http.Handle("/", fileServer)
-	http.HandleFunc("/chat/history", exportService.GetHis)
-	http.HandleFunc("/stream", exportService.StreamHandler)
-	http.ListenAndServe(":8080", nil)
+	mux := http.NewServeMux()
+	mux.Handle("/", fileServer)
+	mux.HandleFunc("/chat/history", exportService.GetHis)
+	mux.HandleFunc("/stream", exportService.StreamHandler)
+	http.ListenAndServe(":8080", loggingMiddleware(mux))
+
+}
+
+func loggingMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		fmt.Printf("[%s] %s %s body:%s\n", time.Now().Format(time.RFC3339), r.Method, r.URL.Path, r.URL.RawQuery)
+		next.ServeHTTP(w, r)
+	})
 }
 
 func save(ctx context.Context) {
@@ -88,3 +101,17 @@ func save(ctx context.Context) {
 	//	}
 	//}
 }
+
+//func test() {
+//	strings := []byte("34jigjreigonoireh")
+//	br := make(map[string]int)
+//	for i := 0; i < len(strings); i++ {
+//		if _, ok := br[string(strings[i])]; ok {
+//			br[string(strings[i])]++
+//		} else {
+//			br[string(strings[i])] = 1
+//		}
+//	}
+//	fmt.Println(br)
+//
+//}

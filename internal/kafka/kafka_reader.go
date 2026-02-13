@@ -6,13 +6,10 @@ import (
 	"errors"
 	"fmt"
 	"log"
-	"main/config"
 	"main/internal/database"
-	"os"
-	"os/signal"
+	"main/internal/model"
 	"strings"
 	"sync"
-	"syscall"
 
 	"github.com/xuri/excelize/v2"
 	"gorm.io/gorm"
@@ -23,33 +20,8 @@ type exportTask struct {
 	exportId string
 }
 
-var exportChan = make(chan exportTask, 100)
-var exportWg sync.WaitGroup
-
-func main() {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	configs := config.InitConfig()
-	database.Init(configs)
-	db := database.InitMysql(ctx)
-	export := NewExportDataBase(db)
-
-	StartExportWorkers(ctx, 5, export)
-
-	go KafkaReader(ctx)
-
-	sigCh := make(chan os.Signal, 1)
-	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
-	<-sigCh
-	log.Println("收到退出信号，开始优雅关闭...")
-
-	cancel()
-
-	close(exportChan)
-
-	exportWg.Wait()
-	log.Println("所有导出协程已退出，程序正常结束")
-}
+var ExportChan = make(chan exportTask, 100)
+var ExportWg sync.WaitGroup
 
 // KafkaReader Kafka读取消息并发送到通道
 func KafkaReader(ctx context.Context) {
@@ -77,7 +49,7 @@ func KafkaReader(ctx context.Context) {
 				exportId: string(m.Key),
 			}
 			select {
-			case exportChan <- exportSt:
+			case ExportChan <- exportSt:
 			case <-ctx.Done():
 				log.Println("往通道塞数据时收到退出信号，放弃发送")
 				return
@@ -88,17 +60,17 @@ func KafkaReader(ctx context.Context) {
 
 // StartExportWorkers 启动协程池
 func StartExportWorkers(ctx context.Context, workerCount int, export *ExportDataBase) {
-	exportWg.Add(workerCount)
+	ExportWg.Add(workerCount)
 	for i := 0; i < workerCount; i++ {
 		go func(workerID int, export *ExportDataBase) {
-			defer exportWg.Done()
+			defer ExportWg.Done()
 			log.Printf("导出协程%d：启动", workerID)
 			for {
 				select {
 				case <-ctx.Done():
 					log.Printf("导出协程%d：收到退出信号，准备退出", workerID)
 					return
-				case data, ok := <-exportChan:
+				case data, ok := <-ExportChan:
 					if !ok {
 						log.Printf("导出协程%d：通道已关闭，无数据可处理，退出", workerID)
 						return
@@ -151,6 +123,11 @@ func (r *ExportDataBase) exportData(ctx context.Context, baseSql string, filenam
 	var globalHeader []string
 	var excelFile *excelize.File
 	var sw *excelize.StreamWriter
+	task := &model.DownloadList{Name: filename}
+	go func() {
+		task.Status = 2
+		task.UpdateTask()
+	}()
 	defer func() {
 		if err := excelFile.Close(); err != nil {
 			log.Fatalf("关闭 Excel 文件失败: %v", err)
@@ -182,6 +159,10 @@ func (r *ExportDataBase) exportData(ctx context.Context, baseSql string, filenam
 		if err := excelFile.SaveAs(savePath); err != nil {
 			log.Fatalf("保存 Excel 文件失败: %v", err)
 		}
+		task.Status = 3
+		task.Path = savePath
+		task.Name = filename
+		task.UpdateTask()
 		log.Printf("所有数据处理完成，Excel 文件已保存至：%s", savePath)
 	} else {
 		fmt.Println("无有效数据，未生成 Excel 文件")

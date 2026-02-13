@@ -297,6 +297,32 @@
         .chat-messages::-webkit-scrollbar-thumb:hover {
             background: #bfbfbf;
         }
+        .loading-dot {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #666;
+            margin: 0 2px;
+            animation: loading 1.4s infinite ease-in-out both;
+        }
+        .loading-dot:nth-child(2) {
+            animation-delay: -0.3s;
+        }
+        .loading-dot:nth-child(3) {
+            animation-delay: -0.6s;
+        }
+        @keyframes loading {
+            0%, 80%, 100% { transform: scale(0); }
+            40% { transform: scale(1); }
+        }
+
+        .ai-loading-inlines {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            color: #666;
+        }
     </style>
 </head>
 <body>
@@ -462,20 +488,21 @@
         assistantMessage.className = 'message assistant-message';
         assistantMessage.dataset.requestId = requestId;
         assistantMessage.innerHTML = `
-            <div class="message-avatar">🤖</div>
-            <div class="message-body">
-                <div class="thinking-area" id="thinking-${requestId}">
-                    <div class="ai-loading-inline">
-                        正在思考
-                        <span class="loading-dot"></span>
-                        <span class="loading-dot"></span>
-                        <span class="loading-dot"></span>
-                    </div>
-                    <div id="thinking-steps-${requestId}" style="margin-top: 4px;"></div>
+        <div class="message-avatar">🤖</div>
+        <div class="message-body">
+            <div class="thinking-area" id="thinking-${requestId}">
+                <!-- 【改动1】给loading元素加唯一ID，方便精准控制 -->
+                <div class="ai-loading-inlines" id="ai-loading-${requestId}">
+                    正在思考
+                    <span class="loading-dot"></span>
+                    <span class="loading-dot"></span>
+                    <span class="loading-dot"></span>
                 </div>
-                <div class="message-content" id="ai-content-${requestId}"></div>
+                <div id="thinking-steps-${requestId}" style="margin-top: 4px;"></div>
             </div>
-        `;
+            <div class="message-content" id="ai-content-${requestId}"></div>
+        </div>
+    `;
         chatMessages.appendChild(assistantMessage);
         chatMessages.scrollTop = chatMessages.scrollHeight;
 
@@ -487,7 +514,10 @@
         let isTaskMode = false;
         let thinkingQueue = [];
         let isProcessingThinking = false;
-        let hasReceivedData = false; // 【关键】标记是否收到过数据
+        let hasReceivedData = false;
+        let toolCompleted = false; // 标记工具是否完成
+        let agentReply = ''; // 存储Agent的总结回复
+        let isAgentReplying = false; // 【改动2】标记Agent是否开始回复
 
         // 【思考过程轮播】每步间隔0.5秒
         function processThinkingQueue() {
@@ -504,7 +534,7 @@
                 }
 
                 const jsonData = thinkingQueue.shift();
-                hasReceivedData = true; // 标记收到数据
+                hasReceivedData = true;
 
                 // 创建步骤显示
                 const stepDiv = document.createElement('div');
@@ -513,9 +543,9 @@
                 const statusText = jsonData.status === 'start' ? '开始' : '完成';
 
                 stepDiv.innerHTML = `
-                    <span class="thinking-dot"></span>
-                    <span>${jsonData.node} ${statusText} ${time ? '(' + time + ')' : ''}</span>
-                `;
+                <span class="thinking-dot"></span>
+                <span>${jsonData.node} ${statusText} ${time ? '(' + time + ')' : ''}</span>
+            `;
 
                 // 保持最多显示3行，超过则移除旧的
                 while (stepsContainer.children.length >= 3) {
@@ -536,68 +566,105 @@
             showNextStep();
         }
 
-        // 【最终结果处理】替换思考区，显示正式回复
-        function showFinalResult(data) {
+        // 工具状态更新（仅更新进度，不终止流程）
+        function updateToolStatus(data) {
             hasReceivedData = true;
+            toolCompleted = true; // 标记工具执行完成
 
             const thinkingArea = document.getElementById(`thinking-${requestId}`);
+            const loadingElement = document.getElementById(`ai-loading-${requestId}`);
+
+            // 工具完成后，loading继续显示，仅更新文字提示
+            if (loadingElement) {
+                loadingElement.textContent = '工具处理完成，正在整理回复...';
+                // 【改动3】保留loading动效（重新加回dot）
+                loadingElement.innerHTML = `
+                工具处理完成，正在整理回复...
+                <span class="loading-dot"></span>
+                <span class="loading-dot"></span>
+                <span class="loading-dot"></span>
+            `;
+            }
+
+            // 工具失败时才直接显示错误（工具成功则等Agent总结）
+            if (data.status === 'error') {
+                const aiContent = document.getElementById(`ai-content-${requestId}`);
+                aiContent.classList.add('show', 'error');
+                aiContent.textContent = data.msg || '工具处理失败';
+
+                // 关闭loading
+                if (loadingElement) loadingElement.style.display = 'none';
+
+                // 关闭SSE连接，恢复按钮
+                if (eventSource) eventSource.close();
+                sendBtn.disabled = false;
+                sendBtn.innerHTML = '发送';
+            }
+        }
+
+        // 真正的最终结果：Agent回复完成
+        function showAgentReply() {
+            const thinkingArea = document.getElementById(`thinking-${requestId}`);
+            const loadingElement = document.getElementById(`ai-loading-${requestId}`);
             const aiContent = document.getElementById(`ai-content-${requestId}`);
 
-            // ✅ 无论成功还是失败，都认为任务结束
+            // 关闭loading
+            if (loadingElement) loadingElement.style.display = 'none';
+
+            // 关闭SSE连接
             if (eventSource) {
                 eventSource.close();
                 eventSource = null;
             }
 
-            if (thinkingArea) {
-                thinkingArea.classList.add('thinking-done');
-                const loadingText = thinkingArea.querySelector('.ai-loading-inline');
-                if (loadingText) loadingText.style.display = 'none';
-            }
-
+            // 隐藏思考区，显示Agent总结
+            if (thinkingArea) thinkingArea.style.display = 'none';
             aiContent.classList.add('show');
-            aiContent.textContent = '';
 
-            if (data.status === 'error') {
-                aiContent.classList.add('error');
-                aiContent.textContent = data.msg || '处理失败';
-            } else if (data.status === 'completed') {
+            // 如果有Agent回复则显示，否则显示工具完成的默认提示
+            if (agentReply) {
+                aiContent.textContent = agentReply;
+            } else if (toolCompleted) {
                 aiContent.classList.add('success');
-                if (data.url) {
-                    aiContent.innerHTML = `处理完成，<a href="${data.url}" target="_blank">点击下载</a>`;
+                const urlData = JSON.parse(localStorage.getItem(`toolUrl_${requestId}`)) || {};
+                if (urlData.url) {
+                    aiContent.innerHTML = `处理完成，<a href="${urlData.url}" target="_blank">点击下载</a>（Agent总结：暂无回复）`;
                 } else {
-                    aiContent.textContent = data.msg || '处理完成';
+                    aiContent.textContent = '处理完成';
                 }
             }
 
-            // ✅ 恢复按钮
+            // 恢复按钮
             sendBtn.disabled = false;
             sendBtn.innerHTML = '发送';
         }
 
-        // 5. 处理普通message事件（自然语言流式）
+        // 5. 处理普通message事件（Agent的流式总结回复）
         eventSource.addEventListener('message', (event) => {
             if (event.data === '[DONE]') {
-                eventSource.close();
-                if (!isTaskMode) {
-                    sendBtn.disabled = false;
-                    sendBtn.innerHTML = '发送';
-                }
+                // 只有收到[DONE]，才是真正的对话结束
+                showAgentReply();
                 return;
             }
 
-            if (!event.data.trim() || isTaskMode) return;
+            if (!event.data.trim()) return;
 
-            hasReceivedData = true; // 标记收到数据
+            hasReceivedData = true;
+            isAgentReplying = true; // 标记Agent开始回复
 
             const aiContent = document.getElementById(`ai-content-${requestId}`);
             const thinkingArea = document.getElementById(`thinking-${requestId}`);
+            const loadingElement = document.getElementById(`ai-loading-${requestId}`);
+
+            // 【改动4】Agent开始回复，立即关闭loading
+            if (loadingElement) loadingElement.style.display = 'none';
 
             // 自然语言模式：隐藏思考区，直接显示内容（流式追加）
             if (thinkingArea) thinkingArea.style.display = 'none';
             if (aiContent) {
                 aiContent.classList.add('show');
-                aiContent.textContent += event.data;
+                agentReply += event.data; // 累积Agent的总结回复
+                aiContent.textContent = agentReply;
                 chatMessages.scrollTop = chatMessages.scrollHeight;
             }
         });
@@ -625,38 +692,42 @@
             }
         });
 
-        // 8. 处理 progress（最终结果）
+        // 8. 处理 progress（工具状态）
         eventSource.addEventListener('progress', (event) => {
             isTaskMode = true;
 
             let jsonData = null;
-
             try {
                 jsonData = JSON.parse(event.data);
             } catch (e) {
-                showFinalResult({
-                    status: 'error',
-                    msg: event.data
-                });
+                updateToolStatus({ status: 'error', msg: event.data });
                 return;
             }
 
-            showFinalResult(jsonData);
+            // 工具完成/失败只更新状态，不终止流程
+            updateToolStatus(jsonData);
+
+            // 临时存储工具返回的URL（供Agent回复完成后使用）
+            if (jsonData.status === 'completed' && jsonData.url) {
+                localStorage.setItem(`toolUrl_${requestId}`, JSON.stringify({ url: jsonData.url }));
+            }
         });
 
-        // 9. 【关键修复】错误处理：只有没收过数据才显示"连接异常"
+        // 9. 错误处理
         eventSource.onerror = (error) => {
             console.error('SSE错误:', error);
             eventSource.close();
 
-            // 如果已经收到过数据，不要覆盖，只恢复按钮
+            const loadingElement = document.getElementById(`ai-loading-${requestId}`);
+            // 关闭loading
+            if (loadingElement) loadingElement.style.display = 'none';
+
             if (hasReceivedData) {
                 sendBtn.disabled = false;
                 sendBtn.innerHTML = '发送';
                 return;
             }
 
-            // 真正没收到数据，才显示连接异常
             const aiContent = document.getElementById(`ai-content-${requestId}`);
             const thinkingArea = document.getElementById(`thinking-${requestId}`);
 

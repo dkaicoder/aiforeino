@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"main/internal/database"
+	"main/internal/model"
 	"time"
 
 	"github.com/cloudwego/eino/components/prompt"
@@ -42,6 +43,16 @@ func newLambda(ctx context.Context, input []*schema.Message) (output []*schema.M
 		return nil, err
 	}
 	exportId := state.ExportTaskID
+
+	go func() {
+		downloadList := &model.DownloadList{
+			Name:       exportId,
+			CreateTime: time.Now(),
+			Type:       "xlsx",
+		}
+		downloadList.CrateTask()
+	}()
+
 	kafkaConn := database.InitKafkaForProducer(ctx)
 	_, err = kafkaConn.WriteMessages(
 		kafka.Message{Value: []byte(res.Data), Key: []byte(exportId)},
