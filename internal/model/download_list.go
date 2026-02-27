@@ -1,8 +1,6 @@
 package model
 
 import (
-	"log"
-	"main/internal/database"
 	"time"
 )
 
@@ -17,18 +15,4 @@ type DownloadList struct {
 
 func (d *DownloadList) TableName() string {
 	return "download_list"
-}
-
-func (d *DownloadList) CrateTask() {
-	result := database.MysqlDb.Create(&d)
-	if result.Error != nil {
-		log.Println("crateTask create error", result.Error)
-	}
-}
-
-func (d *DownloadList) UpdateTask() {
-	result := database.MysqlDb.Where("name = ?", d.Name).Updates(d)
-	if result.Error != nil {
-		log.Println("crateTask create error", result.Error)
-	}
 }

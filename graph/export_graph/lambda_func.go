@@ -50,7 +50,7 @@ func newLambda(ctx context.Context, input []*schema.Message) (output []*schema.M
 			CreateTime: time.Now(),
 			Type:       "xlsx",
 		}
-		downloadList.CrateTask()
+		state.DownloadRepo.CrateTask(downloadList)
 	}()
 
 	kafkaConn := database.InitKafkaForProducer(ctx)
@@ -124,49 +124,49 @@ func newLambda3(ctx context.Context, input []*schema.Message) (output []*schema.
 	return []*schema.Message{systemRole, userRole}, nil
 }
 
-func newLambdaForNeed(ctx context.Context, input []*schema.Message) (output []*schema.Message, err error) {
-	question := input[0].Content
-	messageId := fmt.Sprintf("%d%d", time.Now().UnixNano(), time.Now().UnixNano()%1000)
-	chatMessage := &ChatMessage{
-		MsgID:     messageId,
-		Role:      schema.User,
-		Content:   question,
-		Timestamp: time.Now().Unix(),
-	}
-
-	getChatHistory, err := chatMessage.GetChatHistory(ctx, "session_12345", 10, 0)
-	if err != nil {
-		return nil, fmt.Errorf("读取历史对话失败：%w", err)
-	}
-	for _, msg := range getChatHistory {
-		historyMsg := &schema.Message{
-			Role:    msg.Role,
-			Content: msg.Content,
-		}
-		output = append(output, historyMsg)
-	}
-
-	err = chatMessage.SaveChatMessage(ctx, "session_12345")
-	if err != nil {
-		return nil, fmt.Errorf("保存消息失败：%w", err)
-	}
-
-	var toolList = map[string]string{
-		"export": "导出数据库表数据到excel文件",
-	}
-	toolDesc := "支持的工具列表：\n"
-	for t, desc := range toolList {
-		toolDesc += fmt.Sprintf("- %s：%s\n", t, desc)
-	}
-	tpl := prompt.FromMessages(schema.FString,
-		schema.SystemMessage(userPrompt),
-		schema.UserMessage(question))
-	messages, err := tpl.Format(ctx, map[string]any{
-		"tool_list": toolDesc,
-	})
-	output = append(output, messages...)
-	return output, nil
-}
+//func newLambdaForNeed(ctx context.Context, input []*schema.Message) (output []*schema.Message, err error) {
+//	question := input[0].Content
+//	messageId := fmt.Sprintf("%d%d", time.Now().UnixNano(), time.Now().UnixNano()%1000)
+//	chatMessage := &ChatMessage{
+//		MsgID:     messageId,
+//		Role:      schema.User,
+//		Content:   question,
+//		Timestamp: time.Now().Unix(),
+//	}
+//
+//	getChatHistory, err := chatMessage.GetChatHistory(ctx, "session_12345", 10, 0)
+//	if err != nil {
+//		return nil, fmt.Errorf("读取历史对话失败：%w", err)
+//	}
+//	for _, msg := range getChatHistory {
+//		historyMsg := &schema.Message{
+//			Role:    msg.Role,
+//			Content: msg.Content,
+//		}
+//		output = append(output, historyMsg)
+//	}
+//
+//	err = chatMessage.SaveChatMessage(ctx, "session_12345")
+//	if err != nil {
+//		return nil, fmt.Errorf("保存消息失败：%w", err)
+//	}
+//
+//	var toolList = map[string]string{
+//		"export": "导出数据库表数据到excel文件",
+//	}
+//	toolDesc := "支持的工具列表：\n"
+//	for t, desc := range toolList {
+//		toolDesc += fmt.Sprintf("- %s：%s\n", t, desc)
+//	}
+//	tpl := prompt.FromMessages(schema.FString,
+//		schema.SystemMessage(userPrompt),
+//		schema.UserMessage(question))
+//	messages, err := tpl.Format(ctx, map[string]any{
+//		"tool_list": toolDesc,
+//	})
+//	output = append(output, messages...)
+//	return output, nil
+//}
 
 func newLambdaForArr(ctx context.Context, input []*schema.Message) (output []*schema.Message, err error) {
 	return input, nil

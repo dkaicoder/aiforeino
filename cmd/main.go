@@ -3,10 +3,12 @@ package main
 import (
 	"context"
 	"fmt"
+	"main/agent"
 	"main/config"
+	"main/demo_rag"
+	"main/graph/export_graph"
 	"main/internal/database"
-	"main/internal/service/export"
-	"main/rag_demo"
+	"main/internal/repository"
 	"net/http"
 	"time"
 
@@ -25,15 +27,18 @@ func main() {
 	ctx := context.Background()
 	configs := config.InitConfig()
 	database.Init(configs)
-	database.InitRedis(ctx)
-	database.InitMysql(ctx)
+	redisC := database.InitRedis(ctx)
+	db := database.InitMysql(ctx)
+	chatHistoryRepo := repository.NewRedisChatHistoryRepo(redisC)
+	downloadListRepo := repository.NewDownloadListRepo(db)
+	exportGraph := export_graph.NewExportGraph(downloadListRepo)
+	agentApi := agent.NewAgent(chatHistoryRepo, exportGraph)
 
-	exportService := export.ExportService{}
 	fileServer := http.FileServer(http.Dir("static"))
 	mux := http.NewServeMux()
 	mux.Handle("/", fileServer)
-	mux.HandleFunc("/chat/history", exportService.GetHis)
-	mux.HandleFunc("/stream", exportService.StreamHandler)
+	mux.HandleFunc("/chat/history", agentApi.GetHis)
+	mux.HandleFunc("/stream", agentApi.StreamHandler)
 	http.ListenAndServe(":8080", loggingMiddleware(mux))
 
 }
@@ -46,7 +51,7 @@ func loggingMiddleware(next http.Handler) http.Handler {
 }
 
 func save(ctx context.Context) {
-	r, err := rag_demo.InitRAGEngine(ctx, index, prefix)
+	r, err := demo_rag.InitRAGEngine(ctx, index, prefix)
 	if err != nil {
 		panic(err)
 	}
@@ -101,17 +106,3 @@ func save(ctx context.Context) {
 	//	}
 	//}
 }
-
-//func test() {
-//	strings := []byte("34jigjreigonoireh")
-//	br := make(map[string]int)
-//	for i := 0; i < len(strings); i++ {
-//		if _, ok := br[string(strings[i])]; ok {
-//			br[string(strings[i])]++
-//		} else {
-//			br[string(strings[i])] = 1
-//		}
-//	}
-//	fmt.Println(br)
-//
-//}

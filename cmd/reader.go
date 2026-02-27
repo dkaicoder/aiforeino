@@ -6,6 +6,8 @@ import (
 	"main/config"
 	"main/internal/database"
 	"main/internal/kafka"
+	"main/internal/repository"
+	exports "main/internal/service/export"
 	"os"
 	"os/signal"
 	"syscall"
@@ -17,11 +19,13 @@ func main() {
 	configs := config.InitConfig()
 	database.Init(configs)
 	db := database.InitMysql(ctx)
-	export := kafka.NewExportDataBase(db)
+
+	downLoadRepo := repository.NewDownloadListRepo(db)
+	export := exports.NewExportService(db, downLoadRepo)
 
 	kafka.StartExportWorkers(ctx, 5, export)
 
-	go kafka.KafkaReader(ctx)
+	go kafka.Consumer(ctx)
 
 	sigCh := make(chan os.Signal, 1)
 	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)

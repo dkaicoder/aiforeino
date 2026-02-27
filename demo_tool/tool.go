@@ -1,4 +1,4 @@
-package tool_example
+package demo_tool
 
 import (
 	"context"

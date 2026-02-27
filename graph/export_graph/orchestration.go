@@ -2,12 +2,21 @@ package export_graph
 
 import (
 	"context"
+	"main/internal/repository"
 
 	"github.com/cloudwego/eino/compose"
 	"github.com/cloudwego/eino/schema"
 )
 
-func Buildmytest2(ctx context.Context) (r compose.Runnable[[]*schema.Message, []*schema.Message], err error) {
+type ExportGraph struct {
+	DownloadRepo repository.DownloadListRepository
+}
+
+func NewExportGraph(DownloadRepo repository.DownloadListRepository) *ExportGraph {
+	return &ExportGraph{DownloadRepo: DownloadRepo}
+}
+
+func (e *ExportGraph) Buildmytest2(ctx context.Context) (r compose.Runnable[[]*schema.Message, []*schema.Message], err error) {
 	const (
 		ChatModel1 = "ChatModel1"
 		Lambda1    = "Lambda1"
@@ -22,9 +31,9 @@ func Buildmytest2(ctx context.Context) (r compose.Runnable[[]*schema.Message, []
 		return nil, err
 	}
 	_ = g.AddChatModelNode(ChatModel1, chatModel1KeyOfChatModel)
-	_ = g.AddLambdaNode(Lambda1, compose.InvokableLambda(newLambdaForNeed))
+	//_ = g.AddLambdaNode(Lambda1, compose.InvokableLambda(newLambdaForNeed))
 	_ = g.AddLambdaNode(Lambda2, compose.InvokableLambda(newLambdaForArr))
-	graph2KeyOfexport, err := buildexport(ctx)
+	graph2KeyOfexport, err := e.buildexport(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -41,7 +50,7 @@ func Buildmytest2(ctx context.Context) (r compose.Runnable[[]*schema.Message, []
 	return r, err
 }
 
-func buildexport(ctx context.Context) (ag compose.AnyGraph, err error) {
+func (e *ExportGraph) buildexport(ctx context.Context) (ag compose.AnyGraph, err error) {
 	const (
 		ToolsNode1             = "ToolsNode1"
 		TransformForEnd        = "TransformForEnd"
@@ -54,7 +63,8 @@ func buildexport(ctx context.Context) (ag compose.AnyGraph, err error) {
 	)
 	g := compose.NewGraph[[]*schema.Message, []*schema.Message](compose.WithGenLocalState(func(ctx context.Context) (state *MyGraphState) {
 		return &MyGraphState{
-			Query: "",
+			Query:        "",
+			DownloadRepo: e.DownloadRepo,
 		}
 	}))
 	//toolToOutput := func(ctx context.Context, input string) ([]*schema.Message, error) {

@@ -1,4 +1,4 @@
-package rag_demo
+package demo_rag
 
 import (
 	"context"
