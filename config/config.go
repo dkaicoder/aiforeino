@@ -1,7 +1,6 @@
 package config
 
 import (
-	"os"
 	"sync"
 
 	"github.com/spf13/viper"
@@ -36,16 +35,15 @@ var C *ParamsConfig
 func InitConfig() *ParamsConfig {
 	once.Do(func() {
 		v := viper.New()
-		file, err := os.Open("config/config.yml")
-		if err != nil {
-			panic(err)
-		}
+		v.AddConfigPath("./config")
+		v.AddConfigPath("/dist/config")
+		v.AddConfigPath("/etc/aiforeino")
+		v.SetConfigName("config")
 		v.SetConfigType("yaml")
-		err = v.ReadConfig(file)
+		err := v.ReadInConfig()
 		if err != nil {
 			panic(err)
 		}
-
 		err = v.Unmarshal(&C)
 		if err != nil {
 			panic(err)

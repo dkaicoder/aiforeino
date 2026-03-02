@@ -6,6 +6,8 @@ services:
     container_name: aiforeino
     ports:
       - "8080:8080"
+    volumes:
+      - "./data/aiforeino/config:/dist/config"
     depends_on:
       - mysql
       - redis-stack

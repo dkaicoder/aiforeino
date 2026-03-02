@@ -1,7 +1,7 @@
 # 第一阶段：构建 Go 应用
 FROM golang:1.24.6-alpine AS builder
 ENV GO111MODULE=on \
-    GOPROXY=https://proxy.golang.org,direct \
+    GOPROXY=https://goproxy.cn,direct \
     CGO_ENABLED=0 \
     GOOS=linux \
     GOARCH=amd64
@@ -19,7 +19,7 @@ RUN go mod download
 COPY . ./
 
 # 编译（注意：你的 main.go 在 cmd 目录下）
-RUN go build -v -o app ./cmd/api/main.go
+RUN go build -v -o app ./cmd/main.go
 
 # 第二阶段：运行镜像
 FROM alpine:latest
@@ -29,6 +29,8 @@ RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 
 WORKDIR /dist
 COPY --from=builder /app/app ./app
+COPY --from=builder /app/config ./config
+COPY --from=builder /app/static ./static
 RUN chmod +x ./app
 EXPOSE 8080
 CMD ["./app"]
