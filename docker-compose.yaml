@@ -1,4 +1,15 @@
 services:
+  aiforeino:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: aiforeino
+    ports:
+      - "8080:8080"
+    depends_on:
+      - mysql
+      - redis-stack
+      - kafka
   redis-stack:
     image: redis/redis-stack:latest
     container_name: redis-stack
@@ -32,6 +43,21 @@ services:
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: 'CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT'
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+  mysql:
+    image: mysql:latest
+    container_name: mysql
+    restart: always
+    ports:
+      - "3306:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: greedisgood
+      MYSQL_DATABASE: aiforeino
+      MYSQL_USER: aiforeino
+      MYSQL_PASSWORD: super2secret
+    volumes:
+        - "./data/mysql/data:/var/lib/mysql"
+        - "./data/mysql/config:/etc/mysql/conf.d"
+
 #  kafka-ui:
 #    image: ghcr.io/kafbat/kafka-ui:latest
 #    container_name: kafka-ui
