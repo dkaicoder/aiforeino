@@ -11,9 +11,10 @@ type ParamsConfig struct {
 	Embedding string `mapstructure:"Embedding"`
 	ChatModel string `mapstructure:"ChatModel"`
 	Redis     struct {
-		Host string `mapstructure:"Host"`
-		Port int    `mapstructure:"Port"`
-		DB   int    `mapstructure:"DB"`
+		Host     string `mapstructure:"Host"`
+		Port     int    `mapstructure:"Port"`
+		DB       int    `mapstructure:"DB"`
+		Password string `mapstructure:"Password"`
 	} `mapstructure:"Redis"`
 	Mysql struct {
 		Host     string `mapstructure:"Host"`
@@ -36,8 +37,6 @@ func InitConfig() *ParamsConfig {
 	once.Do(func() {
 		v := viper.New()
 		v.AddConfigPath("./config")
-		v.AddConfigPath("/dist/config")
-		v.AddConfigPath("/etc/aiforeino")
 		v.SetConfigName("config")
 		v.SetConfigType("yaml")
 		err := v.ReadInConfig()

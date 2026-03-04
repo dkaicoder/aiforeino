@@ -28,6 +28,7 @@ func InitRedis(ctx context.Context) *redis2.Client {
 			Addr:          fmt.Sprintf("%s:%d", globalConfig.Redis.Host, globalConfig.Redis.Port),
 			Protocol:      2,
 			UnstableResp3: true,
+			Password:      globalConfig.Redis.Password,
 		})
 
 		if _, err := rdb.Ping(ctx).Result(); err != nil {
