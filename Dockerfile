@@ -18,7 +18,6 @@ RUN go mod download
 # 复制整个项目代码（根目录下的所有文件）
 COPY . ./
 
-# 编译（注意：你的 main.go 在 cmd 目录下）
 RUN go build -v -o app ./cmd/main.go
 
 # 第二阶段：运行镜像
@@ -29,8 +28,6 @@ RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 
 WORKDIR /dist
 COPY --from=builder /app/app ./app
-COPY --from=builder /app/config ./config
-COPY --from=builder /app/static ./static
 RUN chmod +x ./app
 EXPOSE 8080
 CMD ["./app"]

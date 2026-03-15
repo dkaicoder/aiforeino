@@ -1,0 +1,761 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" type="image/png" href="./favicon.png" />
+    <title>AiForEino</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+        }
+
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px;
+            min-height: 100vh;
+        }
+
+        .chat-container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+            backdrop-filter: blur(10px);
+        }
+
+        .chat-header {
+            background: linear-gradient(90deg, #2f54eb 0%, #1d39c4 100%);
+            color: white;
+            padding: 20px 24px;
+            font-size: 18px;
+            font-weight: 600;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .refresh-history {
+            font-size: 13px;
+            background: rgba(255,255,255,0.15);
+            border: 1px solid rgba(255,255,255,0.3);
+            color: white;
+            padding: 6px 16px;
+            border-radius: 20px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .refresh-history:hover {
+            background: rgba(255,255,255,0.25);
+            transform: translateY(-1px);
+        }
+
+        .chat-messages {
+            height: 500px;
+            padding: 24px;
+            overflow-y: auto;
+            background: #f8fafc;
+        }
+
+        .message {
+            margin-bottom: 20px;
+            max-width: 85%;
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .user-message {
+            margin-left: auto;
+            display: flex;
+            justify-content: flex-end;
+        }
+
+        .user-message .message-content {
+            max-width: 70%;
+            text-align: left;
+            white-space: pre-wrap;
+            background: #2f54eb;
+            color: white;
+            padding: 12px 18px;
+            border-radius: 20px 20px 4px 20px;
+            font-size: 14px;
+            line-height: 1.5;
+            box-shadow: 0 4px 12px rgba(47, 84, 235, 0.3);
+        }
+
+        .assistant-message {
+            margin-right: auto;
+            display: flex;
+            gap: 12px;
+        }
+
+        .message-avatar {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            flex-shrink: 0;
+            box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+        }
+
+        .message-body {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        /* 【思考区】小字灰色，临时状态 */
+        .thinking-area {
+            font-size: 12px;
+            color: #8c8c8c;
+            line-height: 1.6;
+            padding: 8px 12px;
+            background: rgba(0,0,0,0.03);
+            border-radius: 12px 12px 12px 4px;
+            border-left: 3px solid #d9d9d9;
+            font-family: "Menlo", "Monaco", monospace;
+            transition: all 0.3s;
+            max-height: 200px;
+            overflow: hidden;
+        }
+
+        .thinking-area.thinking-done {
+            opacity: 0.5;
+            max-height: 20px;
+            padding: 0 12px;
+            overflow: hidden;
+            font-size: 11px;
+            color: #bfbfbf;
+        }
+
+        .thinking-step {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin: 2px 0;
+        }
+
+        .thinking-dot {
+            width: 4px;
+            height: 4px;
+            background: #bfbfbf;
+            border-radius: 50%;
+        }
+
+        /* 【正式回复区】正常字号，白色卡片 */
+        .message-content {
+            background: white;
+            padding: 14px 18px;
+            border-radius: 4px 18px 18px 18px;
+            font-size: 14px;
+            line-height: 1.6;
+            color: #262626;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+            border: 1px solid #e8e8e8;
+            min-height: 44px;
+            display: none; /* 初始隐藏，等有结果再显示 */
+
+        }
+
+        .message-content.show {
+            display: block;
+            animation: slideUp 0.3s ease;
+        }
+
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(5px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .message-content.success {
+            color: #52c41a;
+            border-left: 3px solid #52c41a;
+        }
+
+        .message-content.error {
+            color: #ff4d4f;
+            border-left: 3px solid #ff4d4f;
+            background: #fff2f0;
+        }
+
+        /* Loading动画 */
+        .ai-loading-inline {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .loading-dot {
+            width: 4px;
+            height: 4px;
+            background: #bfbfbf;
+            border-radius: 50%;
+            animation: dotPulse 1.4s infinite;
+        }
+        .loading-dot:nth-child(2) { animation-delay: 0.2s; }
+        .loading-dot:nth-child(3) { animation-delay: 0.4s; }
+        @keyframes dotPulse {
+            0%, 80%, 100% { transform: scale(0); opacity: 0.5; }
+            40% { transform: scale(1); opacity: 1; }
+        }
+
+        .chat-input-area {
+            padding: 20px 24px;
+            border-top: 1px solid #e8e8e8;
+            background: white;
+        }
+        .input-wrapper {
+            display: flex;
+            gap: 12px;
+            align-items: flex-end;
+        }
+        #message-input {
+            flex: 1;
+            padding: 12px 18px;
+            border: 1px solid #d9d9d9;
+            border-radius: 24px;
+            font-size: 14px;
+            outline: none;
+            resize: none;
+            height: 48px;
+            max-height: 120px;
+            transition: all 0.3s;
+        }
+        #message-input:focus {
+            border-color: #2f54eb;
+            box-shadow: 0 0 0 3px rgba(47, 84, 235, 0.1);
+        }
+        #send-btn {
+            padding: 12px 28px;
+            background: #2f54eb;
+            color: white;
+            border: none;
+            border-radius: 24px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            height: 44px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        #send-btn:hover:not(:disabled) {
+            background: #1d39c4;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(47, 84, 235, 0.3);
+        }
+        #send-btn:disabled {
+            background: #bfbfbf;
+            cursor: not-allowed;
+            opacity: 0.8;
+        }
+
+        .btn-loading {
+            width: 16px;
+            height: 16px;
+            border: 2px solid #fff;
+            border-radius: 50%;
+            border-top-color: transparent;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .history-loading {
+            text-align: center;
+            color: #8c8c8c;
+            padding: 40px 0;
+            font-size: 14px;
+        }
+
+        /* 滚动条 */
+        .chat-messages::-webkit-scrollbar {
+            width: 6px;
+        }
+        .chat-messages::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .chat-messages::-webkit-scrollbar-thumb {
+            background: #d9d9d9;
+            border-radius: 3px;
+        }
+        .chat-messages::-webkit-scrollbar-thumb:hover {
+            background: #bfbfbf;
+        }
+        .loading-dot {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #666;
+            margin: 0 2px;
+            animation: loading 1.4s infinite ease-in-out both;
+        }
+        .loading-dot:nth-child(2) {
+            animation-delay: -0.3s;
+        }
+        .loading-dot:nth-child(3) {
+            animation-delay: -0.6s;
+        }
+        @keyframes loading {
+            0%, 80%, 100% { transform: scale(0); }
+            40% { transform: scale(1); }
+        }
+
+        .ai-loading-inlines {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+<div class="chat-container">
+    <div class="chat-header">
+        <span>AiForEino</span>
+        <button class="refresh-history" onclick="loadChatHistory()">刷新历史记录</button>
+    </div>
+
+    <div class="chat-messages" id="chat-messages">
+        <div class="history-loading" id="history-loading">加载历史记录中...</div>
+    </div>
+
+    <div class="chat-input-area">
+        <div class="input-wrapper">
+            <textarea id="message-input" placeholder="输入你的问题，按回车或点击发送..." rows="1"></textarea>
+            <button id="send-btn">发送</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    // 获取DOM元素
+    const chatMessages = document.getElementById('chat-messages');
+    const messageInput = document.getElementById('message-input');
+    const sendBtn = document.getElementById('send-btn');
+    let eventSource = null;
+
+    // 历史记录接口地址（替换为你的实际接口地址）
+    const HISTORY_API_URL = 'https://dkaiai.site/chat/history';
+
+    // HTML转义函数
+    function escapeHtml(unsafe) {
+        if (!unsafe) return '';
+        return unsafe
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#039;");
+    }
+
+    // 加载历史聊天记录
+    async function loadChatHistory() {
+        try {
+            // 显示加载提示
+            chatMessages.innerHTML = '<div class="history-loading" id="history-loading">加载历史记录中...</div>';
+
+            // 调用历史记录接口
+            const response = await fetch(HISTORY_API_URL, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            });
+
+            if (!response.ok) {
+                throw new Error(`历史记录接口请求失败:${response.status}`);
+            }
+
+            const historyList = await response.json();
+            chatMessages.innerHTML = ''; // 清空加载提示
+
+            // 3. 渲染历史消息
+            if (historyList.length === 0) {
+                // 无历史记录时显示欢迎语
+                const welcomeMsg = document.createElement('div');
+                welcomeMsg.className = 'message assistant-message';
+                welcomeMsg.innerHTML = `
+                    <div class="message-avatar">🤖</div>
+                    <div class="message-body">
+                        <div class="message-content show">你好呀 😊！我是你的专属程序员鼓励师，有任何代码相关的烦恼都可以告诉我～</div>
+                    </div>
+                `;
+                chatMessages.appendChild(welcomeMsg);
+            } else {
+                // 遍历历史记录数组渲染
+                historyList.forEach(msg => {
+                    renderHistoryMessage(msg.role, msg.content);
+                });
+            }
+
+            // 滚动到底部
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        } catch (error) {
+            console.error('加载历史记录失败:', error);
+            chatMessages.innerHTML = `
+                <div class="history-loading" style="color: #ff4d4f;">
+                    加载历史记录失败：${error.message}
+                </div>
+            `;
+        }
+    }
+
+    // 渲染历史消息（简化版 - 只显示结果）
+    function renderHistoryMessage(role, content) {
+        if (role === 'user') {
+            const msgDiv = document.createElement('div');
+            msgDiv.className = 'message user-message';
+            msgDiv.innerHTML = `<div class="message-content show">${escapeHtml(content)}</div>`;
+            chatMessages.appendChild(msgDiv);
+        } else if (role === 'assistant') {
+            const msgDiv = document.createElement('div');
+            msgDiv.className = 'message assistant-message';
+
+            // 检测内容是否为URL链接
+            const isUrl = typeof content === 'string' && /^https?:\/\//.test(content);
+
+            if (isUrl) {
+                msgDiv.innerHTML = `
+                <div class="message-avatar">🤖</div>
+                <div class="message-body">
+                    <div class="message-content show success">
+                        处理完成，<a href="${content}" target="_blank" style="color: #52c41a; text-decoration: underline;">点击下载</a>
+                    </div>
+                </div>
+            `;
+            } else {
+                msgDiv.innerHTML = `
+                <div class="message-avatar">🤖</div>
+                <div class="message-body">
+                    <div class="message-content show">${escapeHtml(content)}</div>
+                </div>
+            `;
+            }
+            chatMessages.appendChild(msgDiv);
+        }
+    }
+
+    // 输入框高度自适应
+    messageInput.addEventListener('input', function() {
+        this.style.height = 'auto';
+        const newHeight = Math.min(this.scrollHeight, 120);
+        this.style.height = newHeight + 'px';
+    });
+
+    // 生成唯一请求ID
+    function generateRequestId() {
+        return 'req_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+    }
+
+    // 发送消息主函数
+    function sendMessage() {
+        const inputText = messageInput.value.trim();
+        if (!inputText) return;
+
+        const requestId = generateRequestId();
+
+        // 1. 清空输入框 + 按钮状态
+        messageInput.value = '';
+        messageInput.style.height = '48px';
+        sendBtn.disabled = true;
+        sendBtn.innerHTML = '<span class="btn-loading"></span>思考中...';
+
+        // 2. 添加用户消息
+        const userMessage = document.createElement('div');
+        userMessage.className = 'message user-message';
+        userMessage.innerHTML = `<div class="message-content show">${escapeHtml(inputText)}</div>`;
+        chatMessages.appendChild(userMessage);
+
+        // 3. 创建AI消息容器（包含思考区和正式回复区）
+        const assistantMessage = document.createElement('div');
+        assistantMessage.className = 'message assistant-message';
+        assistantMessage.dataset.requestId = requestId;
+        assistantMessage.innerHTML = `
+        <div class="message-avatar">🤖</div>
+        <div class="message-body">
+            <div class="thinking-area" id="thinking-${requestId}">
+                <!-- 【改动1】给loading元素加唯一ID，方便精准控制 -->
+                <div class="ai-loading-inlines" id="ai-loading-${requestId}">
+                    正在思考
+                    <span class="loading-dot"></span>
+                    <span class="loading-dot"></span>
+                    <span class="loading-dot"></span>
+                </div>
+                <div id="thinking-steps-${requestId}" style="margin-top: 4px;"></div>
+            </div>
+            <div class="message-content" id="ai-content-${requestId}"></div>
+        </div>
+    `;
+        chatMessages.appendChild(assistantMessage);
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+
+        // 4. 建立SSE连接
+        const encodedInput = encodeURIComponent(inputText);
+        if (eventSource) eventSource.close();
+        eventSource = new EventSource(`/stream?question=${encodedInput}&requestId=${requestId}`);
+
+        let isTaskMode = false;
+        let thinkingQueue = [];
+        let isProcessingThinking = false;
+        let hasReceivedData = false;
+        let toolCompleted = false; // 标记工具是否完成
+        let agentReply = ''; // 存储Agent的总结回复
+        let isAgentReplying = false; // 【改动2】标记Agent是否开始回复
+
+        // 【思考过程轮播】每步间隔0.5秒
+        function processThinkingQueue() {
+            if (isProcessingThinking || thinkingQueue.length === 0) return;
+
+            isProcessingThinking = true;
+            const stepsContainer = document.getElementById(`thinking-steps-${requestId}`);
+            if (!stepsContainer) return;
+
+            function showNextStep() {
+                if (thinkingQueue.length === 0) {
+                    isProcessingThinking = false;
+                    return;
+                }
+
+                const jsonData = thinkingQueue.shift();
+                hasReceivedData = true;
+
+                // 创建步骤显示
+                const stepDiv = document.createElement('div');
+                stepDiv.className = 'thinking-step';
+                const time = jsonData.time ? jsonData.time.split(' ')[1] || jsonData.time : '';
+                const statusText = jsonData.status === 'start' ? '开始' : '完成';
+
+                stepDiv.innerHTML = `
+                <span class="thinking-dot"></span>
+                <span>${jsonData.node} ${statusText} ${time ? '(' + time + ')' : ''}</span>
+            `;
+
+                // 保持最多显示3行，超过则移除旧的
+                while (stepsContainer.children.length >= 3) {
+                    stepsContainer.removeChild(stepsContainer.firstChild);
+                }
+                stepsContainer.appendChild(stepDiv);
+
+                chatMessages.scrollTop = chatMessages.scrollHeight;
+
+                // 继续下一条
+                if (thinkingQueue.length > 0) {
+                    setTimeout(showNextStep, 500);
+                } else {
+                    isProcessingThinking = false;
+                }
+            }
+
+            showNextStep();
+        }
+
+        // 工具状态更新（仅更新进度，不终止流程）
+        function updateToolStatus(data) {
+            hasReceivedData = true;
+            toolCompleted = true; // 标记工具执行完成
+
+            const thinkingArea = document.getElementById(`thinking-${requestId}`);
+            const loadingElement = document.getElementById(`ai-loading-${requestId}`);
+
+            // 工具完成后，loading继续显示，仅更新文字提示
+            if (loadingElement) {
+                loadingElement.textContent = '工具处理完成，正在整理回复...';
+                // 【改动3】保留loading动效（重新加回dot）
+                loadingElement.innerHTML = `
+                工具处理完成，正在整理回复...
+                <span class="loading-dot"></span>
+                <span class="loading-dot"></span>
+                <span class="loading-dot"></span>
+            `;
+            }
+
+            // 工具失败时才直接显示错误（工具成功则等Agent总结）
+            if (data.status === 'error') {
+                const aiContent = document.getElementById(`ai-content-${requestId}`);
+                aiContent.classList.add('show', 'error');
+                aiContent.textContent = data.msg || '工具处理失败';
+
+                // 关闭loading
+                if (loadingElement) loadingElement.style.display = 'none';
+
+                // 关闭SSE连接，恢复按钮
+                if (eventSource) eventSource.close();
+                sendBtn.disabled = false;
+                sendBtn.innerHTML = '发送';
+            }
+        }
+
+        // 真正的最终结果：Agent回复完成
+        function showAgentReply() {
+            const thinkingArea = document.getElementById(`thinking-${requestId}`);
+            const loadingElement = document.getElementById(`ai-loading-${requestId}`);
+            const aiContent = document.getElementById(`ai-content-${requestId}`);
+
+            // 关闭loading
+            if (loadingElement) loadingElement.style.display = 'none';
+
+            // 关闭SSE连接
+            if (eventSource) {
+                eventSource.close();
+                eventSource = null;
+            }
+
+            // 隐藏思考区，显示Agent总结
+            if (thinkingArea) thinkingArea.style.display = 'none';
+            aiContent.classList.add('show');
+
+            // 如果有Agent回复则显示，否则显示工具完成的默认提示
+            if (agentReply) {
+                aiContent.textContent = agentReply;
+            } else if (toolCompleted) {
+                aiContent.classList.add('success');
+                const urlData = JSON.parse(localStorage.getItem(`toolUrl_${requestId}`)) || {};
+                if (urlData.url) {
+                    aiContent.innerHTML = `处理完成，<a href="${urlData.url}" target="_blank">点击下载</a>（Agent总结：暂无回复）`;
+                } else {
+                    aiContent.textContent = '处理完成';
+                }
+            }
+
+            // 恢复按钮
+            sendBtn.disabled = false;
+            sendBtn.innerHTML = '发送';
+        }
+
+        // 5. 处理普通message事件（Agent的流式总结回复）
+        eventSource.addEventListener('message', (event) => {
+            if (event.data === '[DONE]') {
+                // 只有收到[DONE]，才是真正的对话结束
+                showAgentReply();
+                return;
+            }
+
+            if (!event.data.trim()) return;
+
+            hasReceivedData = true;
+            isAgentReplying = true; // 标记Agent开始回复
+
+            const aiContent = document.getElementById(`ai-content-${requestId}`);
+            const thinkingArea = document.getElementById(`thinking-${requestId}`);
+            const loadingElement = document.getElementById(`ai-loading-${requestId}`);
+
+            // 【改动4】Agent开始回复，立即关闭loading
+            if (loadingElement) loadingElement.style.display = 'none';
+
+            // 自然语言模式：隐藏思考区，直接显示内容（流式追加）
+            if (thinkingArea) thinkingArea.style.display = 'none';
+            if (aiContent) {
+                aiContent.classList.add('show');
+                agentReply += event.data; // 累积Agent的总结回复
+                aiContent.textContent = agentReply;
+                chatMessages.scrollTop = chatMessages.scrollHeight;
+            }
+        });
+
+        // 6. 处理 startprogress（思考步骤）
+        eventSource.addEventListener('startprogress', (event) => {
+            isTaskMode = true;
+            try {
+                const jsonData = JSON.parse(event.data);
+                thinkingQueue.push(jsonData);
+                processThinkingQueue();
+            } catch (e) {
+                console.error('解析startprogress失败:', e);
+            }
+        });
+
+        // 7. 处理 endprogress（思考步骤结束）
+        eventSource.addEventListener('endprogress', (event) => {
+            try {
+                const jsonData = JSON.parse(event.data);
+                thinkingQueue.push(jsonData); // 加入队列显示"xx完成"
+                processThinkingQueue();
+            } catch (e) {
+                console.error('解析endprogress失败:', e);
+            }
+        });
+
+        // 8. 处理 progress（工具状态）
+        eventSource.addEventListener('progress', (event) => {
+            isTaskMode = true;
+
+            let jsonData = null;
+            try {
+                jsonData = JSON.parse(event.data);
+            } catch (e) {
+                updateToolStatus({ status: 'error', msg: event.data });
+                return;
+            }
+
+            // 工具完成/失败只更新状态，不终止流程
+            updateToolStatus(jsonData);
+
+            // 临时存储工具返回的URL（供Agent回复完成后使用）
+            if (jsonData.status === 'completed' && jsonData.url) {
+                localStorage.setItem(`toolUrl_${requestId}`, JSON.stringify({ url: jsonData.url }));
+            }
+        });
+
+        // 9. 错误处理
+        eventSource.onerror = (error) => {
+            console.error('SSE错误:', error);
+            eventSource.close();
+
+            const loadingElement = document.getElementById(`ai-loading-${requestId}`);
+            // 关闭loading
+            if (loadingElement) loadingElement.style.display = 'none';
+
+            if (hasReceivedData) {
+                sendBtn.disabled = false;
+                sendBtn.innerHTML = '发送';
+                return;
+            }
+
+            const aiContent = document.getElementById(`ai-content-${requestId}`);
+            const thinkingArea = document.getElementById(`thinking-${requestId}`);
+
+            if (thinkingArea) thinkingArea.style.display = 'none';
+            if (aiContent) {
+                aiContent.classList.add('show', 'error');
+                aiContent.textContent = '连接异常，请稍后重试';
+            }
+
+            sendBtn.disabled = false;
+            sendBtn.innerHTML = '发送';
+        };
+    }
+
+    // 绑定事件
+    sendBtn.addEventListener('click', sendMessage);
+    messageInput.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            sendMessage();
+        }
+    });
+
+    // 页面加载时自动加载历史记录
+    window.onload = function() {
+        loadChatHistory();
+    };
+</script>
+</body>
+</html>

@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AiForEino Footer</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background-color: #0a0a0a;
+        }
+
+        .footer {
+            background-color: #0a0a0a;
+            color: #9ca3af;
+            padding: 60px 0 30px;
+            border-top: 1px solid #1f2937;
+        }
+
+        .footer-container {
+            max-width: 1240px;
+            margin: 0 auto;
+            padding: 0 40px;
+        }
+
+        .footer-content {
+            display: grid;
+            grid-template-columns: 2fr 1fr 1.5fr 1.5fr;
+            gap: 60px;
+            margin-bottom: 40px;
+        }
+
+        .footer-brand {
+            max-width: 300px;
+        }
+
+        .brand-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        .brand-logo {
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, #06b6d4 0%, #0891b2 100%);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 20px;
+        }
+
+        .brand-name {
+            color: #ffffff;
+            font-size: 20px;
+            font-weight: 600;
+        }
+
+        .brand-desc {
+            font-size: 14px;
+            line-height: 1.8;
+            color: #6b7280;
+            margin-bottom: 24px;
+        }
+
+        .social-links {
+            display: flex;
+            gap: 12px;
+        }
+
+        .social-link {
+            width: 36px;
+            height: 36px;
+            border: 1px solid #374151;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #9ca3af;
+            text-decoration: none;
+            transition: all 0.3s ease;
+        }
+
+        .social-link:hover {
+            border-color: #06b6d4;
+            color: #06b6d4;
+        }
+
+        .footer-section h3 {
+            color: #ffffff;
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 24px;
+        }
+
+        .footer-links {
+            list-style: none;
+        }
+
+        .footer-links li {
+            margin-bottom: 14px;
+        }
+
+        .footer-links a {
+            color: #9ca3af;
+            text-decoration: none;
+            font-size: 14px;
+            transition: color 0.3s ease;
+        }
+
+        .footer-links a:hover {
+            color: #06b6d4;
+        }
+
+        .contact-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            margin-bottom: 16px;
+            font-size: 14px;
+        }
+
+        .contact-icon {
+            color: #6b7280;
+            margin-top: 2px;
+            flex-shrink: 0;
+        }
+
+        .contact-label {
+            color: #6b7280;
+            margin-bottom: 4px;
+            font-size: 13px;
+        }
+
+        .contact-value {
+            color: #ffffff;
+        }
+
+        .subscribe-desc {
+            font-size: 14px;
+            line-height: 1.6;
+            color: #6b7280;
+            margin-bottom: 16px;
+        }
+
+        .subscribe-form {
+            display: flex;
+            gap: 10px;
+        }
+
+        .subscribe-input {
+            flex: 1;
+            background-color: #1f2937;
+            border: 1px solid #374151;
+            border-radius: 6px;
+            padding: 10px 14px;
+            color: #ffffff;
+            font-size: 14px;
+            outline: none;
+            transition: border-color 0.3s ease;
+        }
+
+        .subscribe-input::placeholder {
+            color: #6b7280;
+        }
+
+        .subscribe-input:focus {
+            border-color: #06b6d4;
+        }
+
+        .subscribe-btn {
+            background-color: #0891b2;
+            color: #ffffff;
+            border: none;
+            border-radius: 6px;
+            padding: 10px 20px;
+            font-size: 14px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+            white-space: nowrap;
+        }
+
+        .subscribe-btn:hover {
+            background-color: #06b6d4;
+        }
+
+        .footer-bottom {
+            border-top: 1px solid #1f2937;
+            padding-top: 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 13px;
+            color: #6b7280;
+        }
+
+        .footer-bottom-links {
+            display: flex;
+            gap: 24px;
+        }
+
+        .footer-bottom-links a {
+            color: #6b7280;
+            text-decoration: none;
+            transition: color 0.3s ease;
+        }
+
+        .footer-bottom-links a:hover {
+            color: #9ca3af;
+        }
+
+        /* 响应式 - 768px */
+        @media (max-width: 768px) {
+            .footer-container {
+                padding: 0 20px;
+            }
+
+            .footer-content {
+                grid-template-columns: 1fr;
+                gap: 40px;
+            }
+
+            .footer-brand {
+                max-width: 100%;
+            }
+
+            .footer-bottom {
+                flex-direction: column;
+                gap: 16px;
+                text-align: center;
+            }
+
+            .footer-bottom-links {
+                gap: 16px;
+            }
+
+            .subscribe-form {
+                flex-direction: column;
+            }
+
+            .subscribe-btn {
+                width: 100%;
+            }
+        }
+
+        /* 图标样式 */
+        .icon {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+        }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <footer class="footer">
+            <div class="footer-container">
+                <div class="footer-content">
+                    <!-- 品牌区域 -->
+                    <div class="footer-brand">
+                        <div class="brand-header">
+                            <div class="brand-logo">♪</div>
+                            <span class="brand-name">AiForEino</span>
+                        </div>
+                        <p class="brand-desc">
+                            AiForEino 是一款基于 Eino 框架构建的轻量化 RAG 工具，专注于将外部文档、知识库与大模型能力深度结合，实现精准、可追溯的知识检索与问答。
+                        </p>
+                        <div class="social-links">
+                            <a href="https://github.com/dkaicoder/aiforeino" target="_blank" class="social-link" title="GitHub">
+                             <svg class="icon"  viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
+                                <path d="M10.303 16.652c-2.837-.344-4.835-2.385-4.835-5.028 0-1.074.387-2.235 1.031-3.008-.279-.709-.236-2.214.086-2.837.86-.107 2.02.344 2.708.967.816-.258 1.676-.386 2.728-.386 1.053 0 1.913.128 2.686.365.666-.602 1.848-1.053 2.708-.946.3.581.344 2.085.064 2.815.688.817 1.053 1.913 1.053 3.03 0 2.643-1.998 4.641-4.877 5.006.73.473 1.224 1.504 1.224 2.686v2.235c0 .644.537 1.01 1.182.752 3.889-1.483 6.94-5.372 6.94-10.185 0-6.081-4.942-11.044-11.022-11.044-6.081 0-10.98 4.963-10.98 11.044a10.84 10.84 0 0 0 7.112 10.206c.58.215 1.139-.172 1.139-.752v-1.719a2.768 2.768 0 0 1-1.032.215c-1.418 0-2.256-.773-2.857-2.213-.237-.58-.495-.924-.989-.988-.258-.022-.344-.129-.344-.258 0-.258.43-.451.86-.451.623 0 1.16.386 1.719 1.181.43.623.881.903 1.418.903.537 0 .881-.194 1.375-.688.365-.365.645-.687.903-.902Z"></path></svg>
+                                
+                            </a>
+               
+                        </div>
+                    </div>
+
+                    <!-- 快速链接 -->
+                    <div class="footer-section">
+                        <h3>快速链接</h3>
+                        <ul class="footer-links">
+                            <li><a href="#">功能特性</a></li>
+                            <li><a href="#">应用展示</a></li>
+                            <li><a href="#">更新日志</a></li>
+                            <li><a href="#">隐私政策</a></li>
+                            <li><a href="#">使用条款</a></li>
+                        </ul>
+                    </div>
+
+                    <!-- 联系我 -->
+                    <div class="footer-section">
+                        <h3>联系我</h3>
+                        <div class="contact-item">
+                            <span class="contact-icon">
+                                <svg class="icon" viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z"/>
+                                </svg>
+                            </span>
+                            <div>
+                                <div class="contact-label">邮箱</div>
+                                <div class="contact-value">dkaii@foxmail.com</div>
+                            </div>
+                        </div>
+                        <div class="contact-item">
+                            <span class="contact-icon">
+                                <svg class="icon" viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.25 1.02l-2.2 2.2z"/>
+                                </svg>
+                            </span>
+                            <div>
+                                <div class="contact-label">电话</div>
+                                <div class="contact-value">+86 17608077964</div>
+                            </div>
+                        </div>
+                        <div class="contact-item">
+                            <span class="contact-icon">
+                                <svg class="icon" viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
+                                </svg>
+                            </span>
+                            <div>
+                                <div class="contact-label">地址</div>
+                                <div class="contact-value">四川省成都市双流区</div>
+                            </div>                    </div>
+                </div>
+
+                <!-- 订阅更新 -->
+                <div class="footer-section">
+                    <h3>订阅更新</h3>
+                    <p class="subscribe-desc">订阅我们的邮件，第一时间获取产品更新和优惠信息</p>
+                    <div class="subscribe-form">
+                        <input 
+                            type="email" 
+                            class="subscribe-input" 
+                            placeholder="your@email.com"
+                            v-model="email"
+                        >
+                        <button class="subscribe-btn" @click="subscribe">订阅</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 底部版权 -->
+            <div class="footer-bottom">
+                <div class="copyright">© 2024 AiForEino. All rights reserved.</div>
+                <div class="footer-bottom-links">
+                    <a href="#">隐私政策</a>
+                    <a href="#">使用条款</a>
+                    <a href="#">Cookie设置</a>
+                </div>
+            </div>
+        </div>
+    </footer>
+</div>
+
+<script>
+    const { createApp } = Vue;
+
+    createApp({
+        data() {
+            return {
+                email: ''
+            }
+        },
+        methods: {
+            subscribe() {
+                if (this.email) {
+                    alert('感谢订阅！我们会将最新资讯发送到 ' + this.email);
+                    this.email = '';
+                } else {
+                    alert('请输入有效的邮箱地址');
+                }
+            }
+        }
+    }).mount('#app');
+</script>
+</body>
+</html>

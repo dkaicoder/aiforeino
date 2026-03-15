@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AiForEino</title>
+    <script src="./vue.global.prod.js"></script>
+    <link rel="stylesheet" href="home.css">
+    <link rel="icon" type="image/png" href="./favicon.png" />
+</head>
+<body>
+    <div id="app">
+        <!-- 头部背景图区域（纯展示，不包含视频） -->
+        <div class="main-content">
+            <div class="header-logo">
+                <svg class="static-svg" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <circle cx="12" cy="12" r="2"></circle>
+                </svg>
+                <div class="logo-text">AiForEino</div>
+            </div>
+
+            <div class="app">
+                <div class="hero">
+                    <h1>AIFOREINO</h1>
+                    <p>基于<strong>EINO</strong>开发的RAG智能体</p>
+                    <div class="btn-group">
+                        <button class="btn btn-primary" @click="handleRegister">立即体验</button>
+                        <button class="btn btn-outline" @click="handleLearnMore">了解更多</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 独立的视频区域（放在头部下方、轮播上方） -->
+        <div class="video-section">
+            <!-- 新增视频区域标题和副标题 -->
+            <h2 class="video-title">加速你的 AI 工作流</h2>
+            <p class="video-subtitle">从首次查询到最终集成，AiForEino 提供基于 RAG 的工具，助你更快构建和部署 AI 应用。</p>
+            
+            <div class="video-container">
+                <div class="video-wrapper">
+                    <video ref="videoPlayer" class="video-player" src="https://videos.ctfassets.net/8aevphvgewt8/490cvTcPE95XqUKGA4C2Kn/427a8803b029857c58167cce0e855191/github-copilot-agent-mode.mp4" loop muted preload="metadata"></video>
+                </div>
+                    <!-- 播放/暂停按钮 -->
+                <button class="video-play-btn" @click="togglePlay">
+                    <svg v-if="!isPlaying" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                    </svg>
+                    <svg v-else xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="6" y="4" width="4" height="16"></rect>
+                        <rect x="14" y="4" width="4" height="16"></rect>
+                    </svg>
+                </button>
+            </div>
+        </div>
+
+        <!-- 轮播区域 -->
+        <div class="marquee-section">
+            <div class="marquee-container">
+                <div class="marquee-track">
+                    <div v-for="(logo, index) in logos" :key="'first-' + index" class="logo-item">
+                        <div v-html="logo.svg"></div>
+                    </div>
+                    <div v-for="(logo, index) in logos" :key="'second-' + index" class="logo-item">
+                        <div v-html="logo.svg"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- footer区域 -->
+        <div class="footer-container">
+            <iframe src="footer.html" class="footer-iframe" scrolling="no"></iframe>
+        </div>
+    </div>
+
+    <script>
+        const { createApp, ref } = Vue;
+
+        createApp({
+            setup() {
+                // 视频控制相关
+                const videoPlayer = ref(null);
+                const isPlaying = ref(false);
+
+                // 播放/暂停切换
+                const togglePlay = () => {
+                    if (!videoPlayer.value) return;
+                    if (isPlaying.value) {
+                        videoPlayer.value.pause();
+                    } else {
+                        videoPlayer.value.play();
+                    }
+                    isPlaying.value = !isPlaying.value;
+                };
+
+                return {
+                    videoPlayer,
+                    isPlaying,
+                    togglePlay
+                };
+            },
+            methods: {
+                handleRegister() {                
+                    window.open('./chat.html', '_blank');
+                },
+                handleLearnMore() {
+                    alert('了解更多功能');
+                }
+            },
+            data() {
+                return {
+                    logos: [
+                 {
+                            name: 'Shopify',
+                            svg: `<svg viewBox="0 0 109 32" fill="currentColor" style="color: #95bf47;"><path d="M25.7 5.2c-.1-.1-.2-.2-.4-.2s-3.6-.2-3.6-.2-2.4-2.4-2.7-2.7c-.3-.3-.9-.2-1.1-.1-.1.1-.2.1-.2.2v.1s-.4 1-.9 2.3c-1.1-.3-2.2-.5-3.3-.5h-.3c-.5-1.4-.7-2.1-.7-2.1s-.1-.3-.4-.4c-.2-.1-.4-.1-.4-.1s-3.6-.2-3.6-.2-2.4-2.4-2.7-2.7c-.2-.2-.6-.2-.8-.1l-.3.3s.1 0 .1.1v.1s-.4 1-.9 2.3c-.9-.2-1.8-.4-2.7-.4-2.2 0-4.6.6-6.3 2.3C.5 6.7 0 8.7 0 10.9c0 1.3.2 2.6.7 3.7 1.2 2.6 3.4 4 6 4 .6 0 1.2-.1 1.8-.2l.3 3.8c0 .2.1.4.3.5.1.1 2.1 1.4 4.1 1.4 1 0 1.9-.3 2.7-.9.6.6 1.3.9 2.1.9 1.1 0 2.2-.5 3.1-1 .9.6 1.9.9 2.9.9 2.3 0 4.3-1.5 4.4-1.6.2-.1.3-.3.3-.5l1.4-13.5c0-.1 0-.3-.1-.4zM15.3 5.5c-.4 1.3-.9 2.8-1.3 4.1-.6-.2-1.2-.4-1.8-.5.5-1.4 1-2.7 1.4-3.7.2-.1.4-.1.7-.1.4 0 .7 0 1 .2zm-2.9 8.8c-.5-.1-1-.3-1.5-.4.4-1.4.9-2.9 1.4-4.3.5.1 1 .3 1.5.4-.5 1.4-1 2.9-1.4 4.3zm1.5-9.4c.4-1.3.9-2.6 1.2-3.6.4.1.7.3.9.6.3.3.5.7.6 1.1-.4 1-.8 2.2-1.2 3.5-.5-.1-.9-.2-1.5-.2v-.4c-.1-.3-.1-.7 0-1zm-3.6-.3c.4 1.1.7 2.3.9 3.5-.6-.1-1.1-.1-1.7-.1-.3 0-.6 0-.9.1.5-1.3 1-2.6 1.4-3.6.1 0 .2.1.3.1zm-1.3 9.7c-.5.1-1 .2-1.6.2-1.6 0-2.9-.6-3.8-1.7-.9-1.1-1.3-2.6-1.2-4.3 0-.3.1-.6.1-.9 1.5-.2 2.8-.1 3.9.2 1.4.4 2.3 1.1 2.9 2.1-.1 1.4-.2 2.9-.3 4.4zm-7.6-4.4c0-1.7.4-3.1 1.2-4.1.8-1 1.9-1.5 3.3-1.5.4 0 .9 0 1.3.1-.4 1.2-.9 2.6-1.4 4.1-1.4-.3-2.8-.4-4.3-.3-.1.5-.1 1-.1 1.5 0 1.4.3 2.6 1 3.5.6.8 1.5 1.3 2.6 1.4-.4.6-.9 1.1-1.5 1.4-1.9.9-3.8.2-4.9-1.8-.6-1.2-.9-2.6-1-4.1l.8.8zm4.9 9.1c-1.5 0-3-.9-3.6-1.3l-.2-2.8c.5.1 1.1.2 1.6.2 1.8 0 3.3-.5 4.4-1.5 1.1-1 1.7-2.4 1.8-4.1.7-.2 1.3-.3 2-.3 1.9 0 3.4.7 4.4 2.1 1 1.4 1.4 3.3 1.2 5.5-.1 1.1-.4 2.1-.8 3-.9 2-2.4 3.1-4.3 3.1-1 0-1.9-.3-2.7-.9l-.2-.2c-.8.6-1.7.9-2.6.9-.1.1-.2.1-.3.1l-.7.2zm10.3-.3c-.1 0-.2-.1-.3-.1-.8-.5-1.4-1.2-1.8-2.1-.4-.9-.6-2-.5-3.2.1-1.8-.2-3.4-1-4.6-.8-1.2-2-1.8-3.6-1.8-.5 0-1 .1-1.5.2l.1-1.1c.5-.1 1-.2 1.5-.2 1.9 0 3.4.7 4.4 2.1 1 1.4 1.4 3.3 1.2 5.5-.1 1.1-.4 2.1-.8 3-.4.9-1 1.6-1.7 2.1l.1.2h2.9l-.5-3.8c-.1-.6-.6-1-1.2-1-.6 0-1.1.4-1.2 1l-.3 2.3c-.2-.1-.3-.2-.5-.3.1-.5.2-1 .3-1.5.1-.6.6-1 1.2-1 .6 0 1.1.4 1.2 1l.5 3.8h-3.1z"/></svg>`
+                        },
+                        {
+                            name: 'Philips',
+                            svg: `<svg viewBox="0 0 140 32" fill="currentColor" style="color: #0e5fd8;"><path d="M0 0h32v32H0V0zm4 4v24h6v-8h4c4.4 0 8-3.6 8-8s-3.6-8-8-8H4zm6 6h4c1.7 0 3 1.3 3 3s-1.3 3-3 3h-4v-6zM40 4h6v24h-6V4zm10 0h16v5h-10v4h8v5h-8v5h10v5H50V4zm20 0h6l6 12V4h6v24h-6l-6-12v12h-6V4zm26 0h6v24h-6V4zm10 0h16v5h-10v4h8v5h-8v10h-6V4z"/></svg>`
+                        },
+                        {
+                            name: 'Societe Generale',
+                            svg: `<svg viewBox="0 0 180 32" fill="currentColor" style="color: #e60028;"><rect x="0" y="0" width="32" height="32" rx="4" fill="#e60028"/><path d="M8 8h16v4H12v4h10v4H12v8H8V8z" fill="white"/><text x="40" y="22" font-family="Arial, sans-serif" font-size="14" font-weight="bold" fill="white">SOCIETE GENERALE</text></svg>`
+                        },
+                        {
+                            name: 'Spotify',
+                            svg: `<svg viewBox="0 0 132 32" fill="currentColor" style="color: #1db954;"><path d="M16 0C7.2 0 0 7.2 0 16s7.2 16 16 16 16-7.2 16-16S24.8 0 16 0zm7.4 23.1c-.3.4-.8.6-1.3.3-3.5-2.1-8-2.6-13.2-1.4-.5.1-1-.2-1.1-.7-.1-.5.2-1 .7-1.1 5.7-1.3 10.6-.7 14.6 1.7.5.3.6.9.3 1.2zm2-4.4c-.3.5-1 .7-1.5.4-4-2.5-10.1-3.2-14.8-1.7-.6.2-1.2-.2-1.4-.7-.2-.6.2-1.2.7-1.4 5.4-1.6 12.1-.8 16.6 2 .6.3.7 1 .4 1.4zm.2-4.6c-4.8-2.9-12.7-3.1-17.3-1.7-.7.2-1.4-.2-1.6-.9s.2-1.4.9-1.6c5.3-1.6 14-.1 19.6 3.2.6.4.8 1.2.4 1.8-.4.5-1.1.7-1.7.3l-.3-.1zM52.9 13.1c-2.9-.7-3.4-1.2-3.4-2.2 0-1 .9-1.6 2.4-1.6 1.4 0 2.7.5 4.1 1.7.1.1.2.1.3.1.1 0 .3-.1.3-.2l1.5-2.1c.2-.2.1-.5-.1-.7-1.7-1.4-3.6-2.1-6-2.1-3.4 0-5.7 2-5.7 5 0 3.2 2.1 4.3 5.6 5.2 2.7.7 3.2 1.2 3.2 2.2 0 1.1-1 1.8-2.6 1.8-1.8 0-3.3-.6-4.9-2.1-.1-.1-.2-.1-.3-.1-.1 0-.2.1-.3.2l-1.7 2c-.2.2-.1.5.1.7 1.9 1.7 4.2 2.6 6.9 2.6 3.7 0 6-1.9 6-5.1.1-2.7-1.6-4.1-5.4-5.1zm12.8-4.4h-3c-.3 0-.5.2-.5.5v13c0 .3.2.5.5.5h3c.3 0 .5-.2.5-.5v-13c0-.3-.2-.5-.5-.5zm13.3.1c-1.3 0-2.4.5-3.4 1.4V9.3c0-.3-.2-.5-.5-.5h-3c-.3 0-.5.2-.5.5v13c0 .3.2.5.5.5h3c.3 0 .5-.2.5-.5v-7.6c0-1.8 1-2.8 2.6-2.8 1.5 0 2.4.9 2.4 2.6v7.8c0 .3.2.5.5.5h3c.3 0 .5-.2.5-.5v-8.5c0-3.2-1.8-5-4.6-5zm11.4 0c-1.3 0-2.4.5-3.4 1.4V9.3c0-.3-.2-.5-.5-.5h-3c-.3 0-.5.2-.5.5v13c0 .3.2.5.5.5h3c.3 0 .5-.2.5-.5v-7.6c0-1.8 1-2.8 2.6-2.8 1.5 0 2.4.9 2.4 2.6v7.8c0 .3.2.5.5.5h3c.3 0 .5-.2.5-.5v-8.5c0-3.2-1.8-5-4.6-5zm13.6 9.7l-3.2-9.2c-.1-.2-.3-.4-.5-.4h-3.3c-.2 0-.4.2-.5.4l-3.2 9.2-2.8-9.2c-.1-.2-.3-.4-.5-.4h-3.4c-.2 0-.3.1-.4.3-.1.2-.1.4 0 .5l4.5 13c.1.2.3.4.5.4h3.3c.2 0 .4-.2.5-.4l3.2-9.1 3.2 9.1c.1.2.3.4.5.4h3.3c.2 0 .4-.2.5-.4l4.5-13c.1-.2.1-.4 0-.5-.1-.2-.2-.3-.4-.3h-3.4c-.2 0-.4.2-.5.4l-2.9 9.2z"/></svg>`
+                        },
+                        {
+                            name: 'Vodafone',
+                            svg: `<svg viewBox="0 0 140 32" fill="currentColor" style="color: #e60000;"><circle cx="16" cy="16" r="16" fill="#e60000"/><path d="M16 4c-1.5 0-2.8.8-3.5 2-.7 1.2-.7 2.7 0 3.9.7 1.2 2 2 3.5 2s2.8-.8 3.5-2c.7-1.2.7-2.7 0-3.9-.7-1.2-2-2-3.5-2zM8.5 12c-1.5 0-2.8.8-3.5 2-.7 1.2-.7 2.7 0 3.9.7 1.2 2 2 3.5 2s2.8-.8 3.5-2c.7-1.2.7-2.7 0-3.9-.7-1.2-2-2-3.5-2zm15 0c-1.5 0-2.8.8-3.5 2-.7 1.2-.7 2.7 0 3.9.7 1.2 2 2 3.5 2s2.8-.8 3.5-2c.7-1.2.7-2.7 0-3.9-.7-1.2-2-2-3.5-2zM16 20c-1.5 0-2.8.8-3.5 2-.7 1.2-.7 2.7 0 3.9.7 1.2 2 2 3.5 2s2.8-.8 3.5-2c.7-1.2.7-2.7 0-3.9-.7-1.2-2-2-3.5-2z" fill="white"/><text x="36" y="22" font-family="Arial, sans-serif" font-size="16" font-weight="bold" fill="white">vodafone</text></svg>`
+                        },
+                        {
+                            name: 'American Airlines',
+                            svg: `<svg viewBox="0 0 200 32" fill="currentColor" style="color: #0078d2;"><path d="M30 4L20 28h-4L6 4h6l6 16 6-16h6z" fill="#0078d2"/><path d="M28 4l-2 6-2-6h-4l4 12 4-12h4z" fill="white"/><text x="38" y="22" font-family="Arial, sans-serif" font-size="12" font-weight="bold" fill="white">American Airlines</text></svg>`
+                        },
+                        {
+                            name: 'Duolingo',
+                            svg: `<svg viewBox="0 0 140 32" fill="currentColor" style="color: #58cc02;"><path d="M16 0C7.2 0 0 7.2 0 16s7.2 16 16 16 16-7.2 16-16S24.8 0 16 0zm4 22c-2.2 0-4-1.8-4-4s1.8-4 4-4 4 1.8 4 4-1.8 4-4 4zm-8 0c-2.2 0-4-1.8-4-4s1.8-4 4-4 4 1.8 4 4-1.8 4-4 4z" fill="#58cc02"/><path d="M12 8c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm8 0c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z" fill="#fff"/><text x="36" y="22" font-family="Arial, sans-serif" font-size="14" font-weight="bold" fill="white">duolingo</text></svg>`
+                        },
+                        {
+                            name: 'EY',
+                            svg: `<svg viewBox="0 0 60 32" fill="currentColor" style="color: #ffe600;"><rect width="60" height="32" fill="#ffe600"/><text x="10" y="24" font-family="Arial, sans-serif" font-size="20" font-weight="bold" fill="black">EY</text></svg>`
+                        },
+                        {
+                            name: 'Ford',
+                            svg: `<svg viewBox="0 0 100 32" fill="currentColor" style="color: #003478;"><ellipse cx="50" cy="16" rx="48" ry="14" fill="#003478" stroke="white" stroke-width="2"/><text x="50" y="22" font-family="Arial, sans-serif" font-size="14" font-weight="bold" fill="white" text-anchor="middle">Ford</text></svg>`
+                        },
+                        {
+                            name: 'Infosys',
+                            svg: `<svg viewBox="0 0 120 32" fill="currentColor" style="color: #007cc3;"><path d="M0 8h8v16H0V8zm12 0h8v16h-8V8zm12 0h8v16h-8V8z" fill="#007cc3"/><text x="40" y="22" font-family="Arial, sans-serif" font-size="16" font-weight="bold" fill="white">Infosys</text></svg>`
+                        }
+                    ]
+                }
+            }
+        }).mount('#app');
+
+        // iframe高度适配
+        window.onload = function() {
+            const iframe = document.querySelector('.footer-iframe');
+            iframe.onload = function() {
+                try {
+                    const height = iframe.contentWindow.document.body.scrollHeight;
+                    iframe.style.height = height + 'px';
+                    iframe.style.minHeight = 'auto';
+                } catch (e) {
+                    iframe.style.minHeight = '900px';
+                }
+            };
+        };
+    </script>
+</body>
+</html>

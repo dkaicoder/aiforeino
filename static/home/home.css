@@ -1,0 +1,440 @@
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+           font-family: "Inter,-apple-system,BlinkMacSystemFont,sans-serif";
+            min-height: 100vh;
+            background-size: cover;
+            color: #fff;
+            position: relative;
+        }
+        .main-content {
+            width: 100%;
+            background: #0a0a1a url('1.jpg') no-repeat center center;
+            background-size: cover;
+            position: relative;
+            min-height: 100vh;
+        }
+        .main-content::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.7);
+            z-index: 1;
+        }
+
+        .header-logo {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            display: flex;
+            align-items: center;
+            gap: 0.8rem;
+            z-index: 10;
+        }
+
+        .static-svg {
+            width: 24px;
+            height: 24px;
+            color: #4a9eff;
+        }
+
+        .logo-text {
+            font-size: 1.2rem;
+            color: #fff;
+            font-weight: 800;
+        }
+
+        .app {
+            width: 100%;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            z-index: 5;
+        }
+
+        .hero {
+            text-align: center;
+            padding: 2rem;
+        }
+
+        .hero h1 {
+            font-size: 120.0387px;
+            letter-spacing: -4.75193px;
+            font-weight: 700;
+            margin-bottom: 1.5rem;
+            letter-spacing: 0.05em;
+            
+        }
+
+        .hero p {
+            font-size: 1.1rem;
+            color: #a0b8d8;
+            margin-bottom: 2.5rem;
+        }
+
+        .hero p strong {
+            color: #4a9eff;
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 0.5rem;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 0.7rem 1.5rem;
+            border-radius: 999px;
+            font-size: 1rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            border: none;
+            font-family: inherit;
+        }
+
+        .btn-primary {
+            background: #fff;
+            color: #000;
+            font-size: 14px;
+            font-weight: 800;
+            font-family: "Inter,-apple-system,BlinkMacSystemFont,sans-serif";
+        }
+
+        .btn-outline {
+            background: transparent;
+            color: #fff;
+            border: 1px solid #fff;
+             font-size: 14px;
+            font-weight: 800;
+            font-family: "Inter,-apple-system,BlinkMacSystemFont,sans-serif";
+        }
+
+        /* 独立的视频播放区域（放在hero下方、轮播上方） */
+        .video-section {
+            width: 100%;
+            background: linear-gradient(to bottom, #04040D 0%, #04040D 100%);
+            padding: 60px 20px;
+            display: flex;
+            flex-direction: column; /* 改为纵向排列，先标题后视频 */
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            z-index: 5;
+            text-align: center;
+        }
+
+        /* 视频区域标题样式（复刻截图） */
+        .video-title {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: #fff;
+            margin-bottom: 1rem;
+            max-width: 800px;
+            line-height: 1.2;
+        }
+
+        .video-subtitle {
+            font-size: 1.1rem;
+            color: #a0b8d8;
+            margin-bottom: 2.5rem;
+            max-width: 800px;
+            line-height: 1.5;
+        }
+
+        .video-container {
+        position: relative;
+        width: 100%;
+        max-width: 1100px;
+        border-radius: 16px;
+        overflow: hidden;
+        
+        /* 关键：多层渐变背景 */
+        background: 
+            /* 顶部紫色光晕 */
+            radial-gradient(
+            ellipse 80% 50% at 50% 0%,
+            rgba(139, 92, 246, 0.4) 0%,
+            transparent 50%
+            ),
+            /* 中心蓝色光晕 */
+            radial-gradient(
+            ellipse 60% 40% at 50% 30%,
+            rgba(59, 130, 246, 0.25) 0%,
+            transparent 60%
+            ),
+            /* 底部深色 */
+            linear-gradient(
+            to bottom,
+            #0f172a 0%,
+            #020617 100%
+            );
+        
+        /* 保留你的阴影 */
+        box-shadow: 0 8px 40px rgba(0, 0, 0, 0.5);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .video-wrapper {
+            position: relative;
+            width: 410px;
+            padding-top: 56.25%; /* 16:9 标准视频比例 */
+            margin: 0px auto;
+        }
+
+         @media (max-width: 768px) {
+                 .video-wrapper {
+                    position: relative;
+                    padding-top: 56.25%; /* 16:9 标准视频比例 */
+                    margin: 0px auto;
+                    width: auto;
+                    height: 325px;
+                }
+         }
+
+        .video-player {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            max-width: 100%;
+            max-height: 100%;
+            width: auto;
+            height: auto;
+            object-fit: contain;
+            border: 5px solid rgba(131, 119, 210, 0.5);
+            border-radius: 3%;
+
+        }
+
+        /* 播放/暂停按钮（悬浮显示，仅保留核心控制） */
+    .video-play-btn {
+        position: absolute;
+        /* 改为右下角 */
+        right: 20px;      /* 距离右边 20px */
+        bottom: 20px;     /* 距离底部 20px */
+        
+        /* 去掉之前的居中 */
+        /* top: 50%; */
+        /* left: 50%; */
+        /* transform: translate(-50%, -50%); */
+        
+        width: 44px;
+        height: 44px;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.8);
+        border: none;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.3s ease;
+        z-index: 2;
+    }
+
+        /* .video-play-btn:hover {
+            background: #fff;
+            transform: translate(-50%, -50%) scale(1.1);
+        } */
+
+        .video-play-btn svg {
+            width: 15px;
+            height: 15px;
+            color: #000;
+        }
+
+        /* 响应式适配 */
+        @media (max-width: 768px) {
+            .video-play-btn {
+                 right: 10px; 
+            }
+       .video-player {
+            top: 60%;
+        
+        }
+            .hero h1 {
+                font-size: 4.5rem;
+            }
+            .logo-text {
+                font-size: 1rem;
+            }
+            .static-svg {
+                width: 20px;
+                height: 20px;
+            }
+            .header-logo {
+                top: 15px;
+                left: 15px;
+            }
+            .btn {
+                padding: 0.6rem 1.2rem;
+                font-size: 0.9rem;
+            }
+            .video-section {
+                padding: 40px 15px;
+            }
+            .video-title {
+                font-size: 1.8rem; /* 移动端标题缩小 */
+            }
+            .video-subtitle {
+                font-size: 1rem; /* 移动端副标题缩小 */
+            }
+            .video-container {
+                max-width: 100%;
+                border-radius: 12px;
+                height: 400px;
+            }
+            .video-play-btn {
+                width: 30px;
+                height: 30px;
+            }
+        }
+
+        .footer-iframe {
+            width: 100%;
+            border: none;
+            height: auto;
+            min-height: 400px;
+            display: block;
+            z-index: 20;
+        }
+
+        @media (max-width: 768px) {
+            .hero h1 {
+                font-size: 3.5rem;
+            }
+            .logo-text {
+                font-size: 1rem;
+            }
+            .static-svg {
+                width: 20px;
+                height: 20px;
+            }
+            .header-logo {
+                top: 15px;
+                left: 15px;
+            }
+            .btn {
+                padding: 0.6rem 1.2rem;
+                font-size: 0.9rem;
+            }
+            .footer-iframe {
+                min-height: 1200px;
+            }
+        }
+
+        /* 轮播 */
+        .marquee-section {
+            width: 100%;
+            background: #0a0a0a;
+            border-top: none;
+            border-bottom: 0.5px solid #0d1117;
+            padding: 40px 0;
+            overflow: hidden;
+            position: relative; 
+            z-index: 10;
+            display: block;
+        }
+
+        .marquee-container {
+            position: relative;
+            width: 100%;
+            height: 100%;
+        }
+
+        .marquee-track {
+            display: flex;
+            animation: scroll 30s linear infinite;
+            width: fit-content;
+        }
+
+        .marquee-track:hover {
+            animation-play-state: paused;
+        }
+
+        @keyframes scroll {
+            0% {
+                transform: translateX(0);
+            }
+            100% {
+                transform: translateX(-50%);
+            }
+        }
+
+        .logo-item {
+            flex-shrink: 0;
+            padding: 0 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0.5;
+            transition: opacity 0.3s ease;
+            filter: grayscale(100%) brightness(2);
+        }
+
+        .logo-item:hover {
+            opacity: 1;
+            filter: grayscale(0%) brightness(1);
+        }
+
+        .logo-item svg,
+        .logo-item img {
+            height: 32px;
+            width: auto;
+            max-width: 140px;
+        }
+
+        .marquee-container::before,
+        .marquee-container::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            width: 120px;
+            height: 100%;
+            z-index: 2;
+            pointer-events: none;
+        }
+
+        .marquee-container::before {
+            left: 0;
+            background: linear-gradient(to right, #0d1117 0%, transparent 100%);
+        }
+
+        .marquee-container::after {
+            right: 0;
+            background: linear-gradient(to left, #0d1117 0%, transparent 100%);
+        }
+
+        @media (max-width: 768px) {
+            .logo-item {
+                padding: 0 24px;
+            }
+
+            .logo-item svg,
+            .logo-item img {
+                height: 24px;
+                max-width: 100px;
+            }
+
+            .marquee-container::before,
+            .marquee-container::after {
+                width: 60px;
+            }
+        }
+
+        /* 布局优化 */
+        .footer-container {
+            position: relative;
+            z-index: 15;
+            width: 100%;
+        }

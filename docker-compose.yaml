@@ -8,6 +8,7 @@ services:
       - "8080:8080"
     volumes:
       - "./data/aiforeino/config:/dist/config"
+      - "./data/aiforeino/static:/dist/static"
     depends_on:
       - mysql
       - redis-stack
@@ -16,12 +17,13 @@ services:
     image: redis/redis-stack:latest
     container_name: redis-stack
     ports:
-      - "6379:6379"  # Redis port
+      - "6973:6379"  # Redis port
       - "8001:8001"  # RedisInsight port
     volumes:
       - ./data/redis:/data
     environment:
-      - REDIS_ARGS=--dir /data --appendonly no --save 1800 1
+      - REDIS_PASSWORD=redissuper2secret
+      - REDIS_ARGS=--dir /data --appendonly no --save 1800 1 --bind 0.0.0.0
     restart: unless-stopped
     healthcheck:
       test: [ "CMD", "redis-cli", "ping" ]
@@ -50,15 +52,15 @@ services:
     container_name: mysql
     restart: always
     ports:
-      - "3306:3306"
+      - "33306:3306"
     environment:
-      MYSQL_ROOT_PASSWORD: greedisgood
+      MYSQL_ROOT_PASSWORD: root123456
       MYSQL_DATABASE: aiforeino
-      MYSQL_USER: aiforeino
-      MYSQL_PASSWORD: super2secret
+      MYSQL_USER: root
+      MYSQL_PASSWORD: 123456
     volumes:
-        - "./data/mysql/data:/var/lib/mysql"
-        - "./data/mysql/config:/etc/mysql/conf.d"
+      - "./data/mysql/data:/var/lib/mysql"
+      - "./data/mysql/config:/etc/mysql/conf.d"
 
 #  kafka-ui:
 #    image: ghcr.io/kafbat/kafka-ui:latest
