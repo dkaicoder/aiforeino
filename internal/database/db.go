@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"main/config"
+	"sync"
 
 	redis2 "github.com/redis/go-redis/v9"
 	"github.com/segmentio/kafka-go"
@@ -15,7 +16,7 @@ import (
 var RedisDb *redis2.Client
 var MysqlDb *gorm.DB
 var kafkaConn *kafka.Conn
-
+var once sync.Once
 var globalConfig *config.ParamsConfig
 
 func Init(cfg *config.ParamsConfig) {
@@ -23,7 +24,7 @@ func Init(cfg *config.ParamsConfig) {
 }
 
 func InitRedis(ctx context.Context) *redis2.Client {
-	if RedisDb == nil {
+	once.Do(func() {
 		rdb := redis2.NewClient(&redis2.Options{
 			Addr:          fmt.Sprintf("%s:%d", globalConfig.Redis.Host, globalConfig.Redis.Port),
 			Protocol:      2,
@@ -35,14 +36,12 @@ func InitRedis(ctx context.Context) *redis2.Client {
 			panic(fmt.Sprintf("Redis连接失败: %v", err))
 		}
 		RedisDb = rdb
-		return RedisDb
-	} else {
-		return RedisDb
-	}
+	})
+	return RedisDb
 }
 
 func InitMysql(ctx context.Context) *gorm.DB {
-	if MysqlDb == nil {
+	once.Do(func() {
 		dsn := fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?charset=utf8mb4&parseTime=True&loc=Local",
 			globalConfig.Mysql.User,
 			globalConfig.Mysql.Password,
@@ -56,8 +55,7 @@ func InitMysql(ctx context.Context) *gorm.DB {
 			panic(err)
 		}
 		MysqlDb = db
-		return db
-	}
+	})
 	return MysqlDb
 }
 
