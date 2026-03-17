@@ -69,7 +69,8 @@ func (e *ExportTool) InvokableRun(ctx context.Context, argumentsInJSON string, o
 		res.Msg = err.Error()
 		res.Status = "error"
 	} else {
-		res.Msg = "导出任务已成功完成，文件可通过以下链接下载：http://192.168.3.182:8080/" + exportTaskID + ".xlsx"
+		path := fmt.Sprintf("导出任务已成功完成，文件可通过以下链接下载：%s/%s.xlsx", e.C.ExportHost, exportTaskID)
+		res.Msg = path
 		res.Status = "completed"
 	}
 	wg.Wait()
