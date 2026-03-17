@@ -41,7 +41,7 @@ func InitRedis(ctx context.Context) *redis2.Client {
 }
 
 func InitMysql(ctx context.Context) *gorm.DB {
-	once.Do(func() {
+	if MysqlDb == nil {
 		dsn := fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?charset=utf8mb4&parseTime=True&loc=Local",
 			globalConfig.Mysql.User,
 			globalConfig.Mysql.Password,
@@ -55,15 +55,17 @@ func InitMysql(ctx context.Context) *gorm.DB {
 			panic(err)
 		}
 		MysqlDb = db
-	})
+		return db
+	}
 	return MysqlDb
 }
 
 func InitKafkaForProducer(ctx context.Context) *kafka.Conn {
 	if kafkaConn == nil {
 		topic := globalConfig.Kafka.Topic
+		address := globalConfig.Kafka.Brokers
 		partition := 0
-		conn, err := kafka.DialLeader(context.Background(), "tcp", globalConfig.Kafka.Brokers, topic, partition)
+		conn, err := kafka.DialLeader(context.Background(), "tcp", address, topic, partition)
 		if err != nil {
 			log.Fatal("failed to dial leader:", err)
 		}

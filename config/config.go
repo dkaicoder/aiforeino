@@ -7,10 +7,13 @@ import (
 )
 
 type ParamsConfig struct {
-	ApiKey    string `mapstructure:"APIKey"`
-	Embedding string `mapstructure:"Embedding"`
-	ChatModel string `mapstructure:"ChatModel"`
-	Redis     struct {
+	ApiKey     string `mapstructure:"APIKey"`
+	ExportHost string `mapstructure:"ExportHost"`
+	ChatModel  string `mapstructure:"ChatModel"`
+	Embedding  struct {
+		ApiKey string `mapstructure:"APIKey"`
+	} `mapstructure:"Embedding"`
+	Redis struct {
 		Host     string `mapstructure:"Host"`
 		Port     int    `mapstructure:"Port"`
 		DB       int    `mapstructure:"DB"`
@@ -24,9 +27,16 @@ type ParamsConfig struct {
 		Database string `mapstructure:"Database"`
 	} `mapstructure:"Mysql"`
 	Kafka struct {
-		Brokers string `mapstructure:"Brokers"`
-		Topic   string `mapstructure:"Topic"`
+		Brokers  string `mapstructure:"Brokers"`
+		Topic    string `mapstructure:"Topic"`
+		Username string `mapstructure:"Username"`
+		Password string `mapstructure:"Password"`
 	} `mapstructure:"Kafka"`
+	Langfuse struct {
+		Host      string `mapstructure:"Host"`
+		PublicKey string `mapstructure:"PublicKey"`
+		SecretKey string `mapstructure:"SecretKey"`
+	} `mapstructure:"Langfuse"`
 }
 
 var once sync.Once

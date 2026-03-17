@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"main/config"
 	"main/graph/export_graph"
 	"main/pkg/common"
 	"sync"
@@ -18,6 +19,7 @@ import (
 
 type ExportTool struct {
 	ExportGraph *export_graph.ExportGraph
+	C           *config.ParamsConfig
 }
 
 type ToolResult struct {
@@ -77,9 +79,9 @@ func (e *ExportTool) InvokableRun(ctx context.Context, argumentsInJSON string, o
 
 func (e *ExportTool) RunExportGraph(ctx context.Context, exportTaskID string, msgChan chan string, questing string) ([]*schema.Message, error) {
 	cbh, flusher := langfuse.NewLangfuseHandler(&langfuse.Config{
-		Host:      "https://us.cloud.langfuse.com",
-		PublicKey: "pk-lf-8f9c06d7-b5ff-48ed-a559-e0e04d197e88",
-		SecretKey: "sk-lf-9d1c1bf0-6458-41a2-aa40-9a5b56015c06",
+		Host:      e.C.Langfuse.Host,
+		PublicKey: e.C.Langfuse.PublicKey,
+		SecretKey: e.C.Langfuse.SecretKey,
 	})
 	callbacks.AppendGlobalHandlers(cbh)
 	r, err := e.ExportGraph.Buildmytest2(ctx)
@@ -116,7 +118,8 @@ func (e *ExportTool) RunExportGraph(ctx context.Context, exportTaskID string, ms
 	if err != nil {
 		return nil, err
 	}
-	url := "http://192.168.3.182:8080/" + exportTaskID + ".xlsx"
+
+	url := fmt.Sprintf("%s/%s.xlsx", e.C.ExportHost, exportTaskID)
 	sseMsg := fmt.Sprintf("event: progress\ndata: {\"task_id\":\"%s\",\"status\":\"completed\",\"url\":\"%s\"}\n\n", exportTaskID, url)
 	//	e.graphEndSaveRes(ctx, url)
 	msgChan <- sseMsg

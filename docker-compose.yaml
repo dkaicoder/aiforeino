@@ -13,6 +13,16 @@ services:
       - mysql
       - redis-stack
       - kafka
+  reader:
+    build:
+      context: .
+      dockerfile: Dockerfile.reader
+    container_name: reader
+    volumes:
+      - "./data/aiforeino/config:/dist/config"
+      - "./data/aiforeino/static:/dist/static"
+    depends_on:
+      - kafka
   redis-stack:
     image: redis/redis-stack:latest
     container_name: redis-stack
@@ -42,7 +52,7 @@ services:
       # 关键修改：添加 PLAINTEXT_HOST 监听器
       KAFKA_LISTENERS: 'PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093,PLAINTEXT_HOST://0.0.0.0:9094'
       # 分别给容器内部和宿主机返回不同的地址
-      KAFKA_ADVERTISED_LISTENERS: 'PLAINTEXT://localhost:9092,PLAINTEXT_HOST://localhost:9092'
+      KAFKA_ADVERTISED_LISTENERS: 'PLAINTEXT://kafka:9092'
       KAFKA_CONTROLLER_LISTENER_NAMES: 'CONTROLLER'
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: 'CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT'
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
@@ -69,7 +79,7 @@ services:
 #      - "8080:8080"
 #    environment:
 #      KAFKA_CLUSTERS_0_NAME: local-cluster
-#      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9092  # 这个是对的，不用改
+#      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9192  # 这个是对的，不用改
 #      DYNAMIC_CONFIG_ENABLED: 'true'
 #      KAFKA_UI_DATA_BUFFER_LIMIT: 20MB
 #    depends_on:

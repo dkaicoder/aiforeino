@@ -25,10 +25,11 @@ func main() {
 	database.Init(configs)
 	redisC := database.InitRedis(ctx)
 	db := database.InitMysql(ctx)
+	_ = database.InitKafkaForProducer(ctx)
 	chatHistoryRepo := repository.NewRedisChatHistoryRepo(redisC)
 	downloadListRepo := repository.NewDownloadListRepo(db)
 	exportGraph := export_graph.NewExportGraph(downloadListRepo)
-	agentApi := agent.NewAgent(chatHistoryRepo, exportGraph)
+	agentApi := agent.NewAgent(configs, chatHistoryRepo, exportGraph)
 
 	fileServer := http.FileServer(http.Dir("static"))
 	mux := http.NewServeMux()

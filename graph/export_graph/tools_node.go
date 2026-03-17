@@ -13,7 +13,6 @@ import (
 
 // newToolsNode component initialization function of node 'ToolsNode1' in graph 'mytest2'
 func newToolsNode(ctx context.Context) (tsn *compose.ToolsNode, err error) {
-	// TODO Modify component configuration here.
 	config := &compose.ToolsNodeConfig{}
 	toolIns11, err := newTool(ctx)
 	if err != nil {

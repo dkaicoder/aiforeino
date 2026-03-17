@@ -5,6 +5,9 @@ go 1.24.6
 require (
 	github.com/cloudwego/eino v0.7.13
 	github.com/cloudwego/eino-ext/callbacks/langfuse v0.0.0-20260122064704-d8be5ee82c09
+	github.com/cloudwego/eino-ext/components/document/loader/file v0.0.0-20260313050455-88e279b3b32f
+	github.com/cloudwego/eino-ext/components/document/transformer/splitter/markdown v0.0.0-20260313050455-88e279b3b32f
+	github.com/cloudwego/eino-ext/components/indexer/redis v0.0.0-20260313050455-88e279b3b32f
 	github.com/redis/go-redis/v9 v9.17.2
 	github.com/segmentio/kafka-go v0.4.50
 	github.com/spf13/viper v1.21.0

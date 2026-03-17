@@ -7,11 +7,12 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"main/config"
 	"main/graph/export_graph"
 	"main/internal/model"
 	"main/internal/repository"
-	"main/pkg/ai"
 	"main/pkg/common"
+	"main/pkg/llm"
 	"net/http"
 	"time"
 
@@ -22,12 +23,14 @@ import (
 )
 
 type Agent struct {
+	C               *config.ParamsConfig
 	ChatHistoryRepo repository.ChatHistoryRepository
 	ExportGraph     *export_graph.ExportGraph
 }
 
-func NewAgent(chatHistoryRepo repository.ChatHistoryRepository, exportGraph *export_graph.ExportGraph) *Agent {
+func NewAgent(c *config.ParamsConfig, chatHistoryRepo repository.ChatHistoryRepository, exportGraph *export_graph.ExportGraph) *Agent {
 	return &Agent{
+		C:               c,
 		ChatHistoryRepo: chatHistoryRepo,
 		ExportGraph:     exportGraph,
 	}
@@ -78,7 +81,7 @@ func (e *Agent) getChatHistory(ctx context.Context, question string) (output []*
 
 // 大模型聊天
 func (e *Agent) bigChatModel(ctx context.Context, question string, w http.ResponseWriter, flusher http.Flusher) *schema.StreamReader[*schema.Message] {
-	chatModel, err := ai.NewChatModelFactory(ctx, "doubao-1-5-pro-32k-250115")
+	chatModel, err := llm.NewChatModelFactory(ctx, "doubao-1-5-pro-32k-250115")
 	if err != nil {
 		panic(err)
 	}
@@ -90,6 +93,7 @@ func (e *Agent) bigChatModel(ctx context.Context, question string, w http.Respon
 	toolList := []tool.BaseTool{
 		&ExportTool{
 			ExportGraph: e.ExportGraph,
+			C:           e.C,
 		},
 	}
 	agent, err := react.NewAgent(ctx, &react.AgentConfig{
