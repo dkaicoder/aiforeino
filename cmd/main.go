@@ -9,6 +9,7 @@ import (
 	"main/internal/database"
 	"main/internal/repository"
 	"net/http"
+	"path/filepath"
 	"time"
 
 	_ "net/http/pprof"
@@ -25,13 +26,14 @@ func main() {
 	database.Init(configs)
 	redisC := database.InitRedis(ctx)
 	db := database.InitMysql(ctx)
-	_ = database.InitKafkaForProducer(ctx)
+
 	chatHistoryRepo := repository.NewRedisChatHistoryRepo(redisC)
 	downloadListRepo := repository.NewDownloadListRepo(db)
 	exportGraph := export_graph.NewExportGraph(downloadListRepo)
 	agentApi := agent.NewAgent(configs, chatHistoryRepo, exportGraph)
 
-	fileServer := http.FileServer(http.Dir("static"))
+	staticHomeDir, _ := filepath.Abs("./static/home")
+	fileServer := http.FileServer(http.Dir(staticHomeDir))
 	mux := http.NewServeMux()
 	mux.Handle("/", fileServer)
 	mux.HandleFunc("/chat/history", agentApi.GetHis)
