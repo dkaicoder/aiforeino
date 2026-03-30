@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	tool2 "main/agent/tool/export"
 	"main/config"
 	"main/graph/export_graph"
 	"main/internal/model"
@@ -91,7 +92,7 @@ func (e *Agent) bigChatModel(ctx context.Context, question string, w http.Respon
 	}
 	execCtx := common.WithProgressEmitter(ctx, emitter)
 	toolList := []tool.BaseTool{
-		&ExportTool{
+		&tool2.ExportTool{
 			ExportGraph: e.ExportGraph,
 			C:           e.C,
 		},

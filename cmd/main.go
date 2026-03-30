@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"main/agent"
+	"main/agent/tool/rag"
 	"main/config"
 	"main/graph/export_graph"
 	"main/internal/database"
@@ -13,11 +14,6 @@ import (
 	"time"
 
 	_ "net/http/pprof"
-)
-
-const (
-	prefix = "OuterCyrex:"
-	index  = "OuterIndex"
 )
 
 func main() {
@@ -42,7 +38,6 @@ func main() {
 	mux.HandleFunc("/chat/history", agentApi.GetHis)
 	mux.HandleFunc("/stream", agentApi.StreamHandler)
 	http.ListenAndServe(":8080", loggingMiddleware(mux))
-
 }
 
 func loggingMiddleware(next http.Handler) http.Handler {
@@ -52,59 +47,15 @@ func loggingMiddleware(next http.Handler) http.Handler {
 	})
 }
 
-//func save(ctx context.Context) {
-//	r, err := demo_rag.InitRAGEngine(ctx, index, prefix)
-//	if err != nil {
-//		panic(err)
-//	}
-//
-//	doc, err := r.Loader.Load(ctx, document.Source{
-//		URI: "./information/mysql-1.md",
-//	})
-//	if err != nil {
-//		panic(err)
-//	}
-//
-//	docs, err := r.Splitter.Transform(ctx, doc)
-//	if err != nil {
-//		panic(err)
-//	}
-//
-//	for _, d := range docs {
-//		uuid, _ := uuid2.NewUUID()
-//		d.ID = uuid.String()
-//	}
-//
-//	err = r.InitVectorIndex(ctx)
-//	if err != nil {
-//		panic(err)
-//	}
-//
-//	_, err = r.Indexer.Store(ctx, docs)
-//	if err != nil {
-//		panic(err)
-//	}
-//
-//	//var query string
-//	//for {
-//	//	_, _ = fmt.Scan(&query)
-//	//	output, err := r.Generate(ctx, query)
-//	//	if err != nil {
-//	//		panic(err)
-//	//	}
-//	//	var fullContent string // 用来拼接所有片段
-//	//	for {
-//	//		o, err := output.Recv()
-//	//		if err != nil {
-//	//			if err == io.EOF {
-//	//				break
-//	//			}
-//	//			panic(err) // 其他错误才 panic
-//	//		}
-//	//		if o.Content != "" {
-//	//			fullContent += o.Content
-//	//			fmt.Print(o.Content)
-//	//		}
-//	//	}
-//	//}
-//}
+func Run(ctx context.Context, filePath string) {
+	wf := rag.BuildWorkflow(ctx)
+	runner, err := wf.Compile(ctx)
+	if err != nil {
+		fmt.Println(err)
+	}
+	out, err := runner.Invoke(ctx, rag.Input{FilePath: filePath})
+	if err != nil {
+		fmt.Println(err)
+	}
+	fmt.Println(out)
+}
