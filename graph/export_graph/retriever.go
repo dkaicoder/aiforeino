@@ -11,7 +11,7 @@ import (
 
 // newRetriever component initialization function of node 'Retriever1' in graph 'mytest2'
 func newRetriever(ctx context.Context) (rtr retriever.Retriever, err error) {
-	initRedis := database.InitRedis(ctx)
+	initRedis := database.RedisDb
 	embeddingIns11, err := newEmbedding(ctx)
 	if err != nil {
 		return nil, err

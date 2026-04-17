@@ -1,8 +1,6 @@
 package config
 
 import (
-	"sync"
-
 	"github.com/spf13/viper"
 )
 
@@ -39,28 +37,21 @@ type ParamsConfig struct {
 	} `mapstructure:"Langfuse"`
 }
 
-var once sync.Once
-
 var C *ParamsConfig
 
-func InitConfig() *ParamsConfig {
-	once.Do(func() {
-		v := viper.New()
-		v.AddConfigPath("./config")
-		v.SetConfigName("config")
-		v.SetConfigType("yaml")
-		err := v.ReadInConfig()
-		if err != nil {
-			panic(err)
-		}
-		err = v.Unmarshal(&C)
-		if err != nil {
-			panic(err)
-		}
-
-		return
-	})
-	return C
+func InitConfig() {
+	v := viper.New()
+	v.AddConfigPath("./config")
+	v.SetConfigName("config")
+	v.SetConfigType("yaml")
+	err := v.ReadInConfig()
+	if err != nil {
+		panic(err)
+	}
+	err = v.Unmarshal(&C)
+	if err != nil {
+		panic(err)
+	}
 }
 
 func GetConfig() *ParamsConfig {

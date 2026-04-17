@@ -63,9 +63,10 @@ func (impl *ToolImpl) InvokableRun(ctx context.Context, argumentsInJSON string, 
 		Data   string `json:"data"`
 	}{}
 	json.Unmarshal([]byte(argumentsInJSON), &sqlStruct)
-	db := database.InitMysql(ctx)
+	db := database.MysqlDb
 	sql := fmt.Sprintf("EXPLAIN %s", sqlStruct.SQL)
 	fmt.Println(sql)
+
 	err := db.Raw(sql).Error
 	if err != nil {
 		return "", fmt.Errorf("SQL 语法错误: %v\n", err)

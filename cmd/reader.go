@@ -16,12 +16,12 @@ import (
 func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	configs := config.InitConfig()
-	database.Init(configs)
-	db := database.InitMysql(ctx)
+	config.InitConfig()
+	database.Init(config.C)
+	database.InitMysql(ctx)
 
-	downLoadRepo := repository.NewDownloadListRepo(db)
-	export := exports.NewExportService(db, downLoadRepo)
+	downLoadRepo := repository.NewDownloadListRepo(database.MysqlDb)
+	export := exports.NewExportService(database.MysqlDb, downLoadRepo)
 
 	kafka.StartExportWorkers(ctx, 5, export)
 

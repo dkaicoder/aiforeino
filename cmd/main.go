@@ -9,8 +9,8 @@ import (
 	"main/graph/export_graph"
 	"main/internal/database"
 	"main/internal/repository"
+	"main/router"
 	"net/http"
-	"path/filepath"
 	"time"
 
 	_ "net/http/pprof"
@@ -18,26 +18,18 @@ import (
 
 func main() {
 	ctx := context.Background()
-	configs := config.InitConfig()
+	config.InitConfig()
+	configs := config.C
 	database.Init(configs)
-	redisC := database.InitRedis(ctx)
-	db := database.InitMysql(ctx)
-
-	chatHistoryRepo := repository.NewRedisChatHistoryRepo(redisC)
-	downloadListRepo := repository.NewDownloadListRepo(db)
+	database.InitRedis(ctx)
+	database.InitMysql(ctx)
+	chatHistoryRepo := repository.NewRedisChatHistoryRepo(database.RedisDb)
+	downloadListRepo := repository.NewDownloadListRepo(database.MysqlDb)
 	exportGraph := export_graph.NewExportGraph(downloadListRepo)
 	agentApi := agent.NewAgent(configs, chatHistoryRepo, exportGraph)
-
-	staticHomeDir, _ := filepath.Abs("./static/home")
-	staticDir, _ := filepath.Abs("./static")
-	staticHomeFileServer := http.FileServer(http.Dir(staticHomeDir))
-	staticFileServer := http.FileServer(http.Dir(staticDir))
-	mux := http.NewServeMux()
-	mux.Handle("/", staticHomeFileServer)
-	mux.Handle("/static/", http.StripPrefix("/static/", staticFileServer))
-	mux.HandleFunc("/chat/history", agentApi.GetHis)
-	mux.HandleFunc("/stream", agentApi.StreamHandler)
-	http.ListenAndServe(":8080", loggingMiddleware(mux))
+	s := router.NewRouter("/agent", agentApi)
+	r := router.NewApp(8080, s)
+	r.Run()
 }
 
 func loggingMiddleware(next http.Handler) http.Handler {

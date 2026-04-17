@@ -21,6 +21,7 @@ import (
 	"github.com/cloudwego/eino/compose"
 	"github.com/cloudwego/eino/flow/agent/react"
 	"github.com/cloudwego/eino/schema"
+	"github.com/gin-gonic/gin"
 )
 
 type Agent struct {
@@ -128,20 +129,20 @@ func (e *Agent) bigChatModel(ctx context.Context, question string, w http.Respon
 	return streamResult
 }
 
-func (e *Agent) StreamHandler(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
+func (e *Agent) StreamHandler(g *gin.Context) {
+	w := g.Writer
 	// 设置响应头
 	w.Header().Set("Content-Type", "text/event-stream")
 	w.Header().Set("Cache-Control", "no-cache")
 	w.Header().Set("Connection", "keep-alive")
-	question := r.URL.Query().Get("question")
+	question := g.Query("question")
 	flusher, ok := w.(http.Flusher)
 	if !ok {
 		http.Error(w, "Streaming unsupported!", http.StatusInternalServerError)
 		return
 	}
 
-	stream := e.bigChatModel(ctx, question, w, flusher)
+	stream := e.bigChatModel(g, question, w, flusher)
 	defer stream.Close()
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -174,7 +175,7 @@ func (e *Agent) StreamHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (e *Agent) GetHis(w http.ResponseWriter, r *http.Request) {
+func (e *Agent) GetHis(g *gin.Context) {
 	ctx := context.Background()
 	getChatHistory, err := e.ChatHistoryRepo.GetChatHistory(ctx, "session_12345", 10, 0)
 	if err != nil {
@@ -184,5 +185,5 @@ func (e *Agent) GetHis(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		panic(err)
 	}
-	w.Write(j)
+	g.Data(http.StatusOK, "application/json", j)
 }

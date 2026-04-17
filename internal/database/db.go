@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log"
 	"main/config"
-	"sync"
 
 	redis2 "github.com/redis/go-redis/v9"
 	"github.com/segmentio/kafka-go"
@@ -16,48 +15,40 @@ import (
 var RedisDb *redis2.Client
 var MysqlDb *gorm.DB
 var kafkaConn *kafka.Conn
-var once sync.Once
 var globalConfig *config.ParamsConfig
 
 func Init(cfg *config.ParamsConfig) {
 	globalConfig = cfg
 }
 
-func InitRedis(ctx context.Context) *redis2.Client {
-	once.Do(func() {
-		rdb := redis2.NewClient(&redis2.Options{
-			Addr:          fmt.Sprintf("%s:%d", globalConfig.Redis.Host, globalConfig.Redis.Port),
-			Protocol:      2,
-			UnstableResp3: true,
-			Password:      globalConfig.Redis.Password,
-		})
-
-		if _, err := rdb.Ping(ctx).Result(); err != nil {
-			panic(fmt.Sprintf("Redis连接失败: %v", err))
-		}
-		RedisDb = rdb
+func InitRedis(ctx context.Context) {
+	rdb := redis2.NewClient(&redis2.Options{
+		Addr:          fmt.Sprintf("%s:%d", globalConfig.Redis.Host, globalConfig.Redis.Port),
+		Protocol:      2,
+		UnstableResp3: true,
+		Password:      globalConfig.Redis.Password,
 	})
-	return RedisDb
+
+	if _, err := rdb.Ping(ctx).Result(); err != nil {
+		panic(fmt.Sprintf("Redis连接失败: %v", err))
+	}
+	RedisDb = rdb
 }
 
-func InitMysql(ctx context.Context) *gorm.DB {
-	if MysqlDb == nil {
-		dsn := fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?charset=utf8mb4&parseTime=True&loc=Local",
-			globalConfig.Mysql.User,
-			globalConfig.Mysql.Password,
-			globalConfig.Mysql.Host,
-			globalConfig.Mysql.Port,
-			globalConfig.Mysql.Database)
-		db, err := gorm.Open(mysql.Open(dsn), &gorm.Config{
-			PrepareStmt: true,
-		})
-		if err != nil {
-			panic(err)
-		}
-		MysqlDb = db
-		return db
+func InitMysql(ctx context.Context) {
+	dsn := fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?charset=utf8mb4&parseTime=True&loc=Local",
+		globalConfig.Mysql.User,
+		globalConfig.Mysql.Password,
+		globalConfig.Mysql.Host,
+		globalConfig.Mysql.Port,
+		globalConfig.Mysql.Database)
+	db, err := gorm.Open(mysql.Open(dsn), &gorm.Config{
+		PrepareStmt: true,
+	})
+	if err != nil {
+		panic(err)
 	}
-	return MysqlDb
+	MysqlDb = db
 }
 
 func InitKafkaForProducer(ctx context.Context) *kafka.Conn {
