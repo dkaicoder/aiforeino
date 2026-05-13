@@ -6,11 +6,9 @@ import (
 	"fmt"
 	"main/config"
 	"main/graph/export_graph"
-	"main/pkg/common"
-	"sync"
+	"main/pkg/progress"
 	"time"
 
-	"github.com/cloudwego/eino-ext/callbacks/langfuse"
 	"github.com/cloudwego/eino/callbacks"
 	"github.com/cloudwego/eino/components/tool"
 	"github.com/cloudwego/eino/compose"
@@ -49,20 +47,8 @@ func (e *ExportTool) Info(ctx context.Context) (*schema.ToolInfo, error) {
 }
 
 func (e *ExportTool) InvokableRun(ctx context.Context, argumentsInJSON string, opts ...tool.Option) (string, error) {
-	msgChan := make(chan string, 10)
 	exportTaskID := fmt.Sprintf("export_%d", time.Now().Unix())
-	var wg sync.WaitGroup
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		for msg := range msgChan {
-			if emitter, ok := common.GetProgressEmitter(ctx); ok {
-				emitter.Emit(msg)
-			}
-		}
-	}()
-
-	_, err := e.RunExportGraph(ctx, exportTaskID, msgChan, argumentsInJSON)
+	_, err := e.RunExportGraph(ctx, exportTaskID, argumentsInJSON)
 	res := &ToolResult{}
 	res.TaskID = exportTaskID
 	if err != nil {
@@ -73,24 +59,16 @@ func (e *ExportTool) InvokableRun(ctx context.Context, argumentsInJSON string, o
 		res.Msg = path
 		res.Status = "completed"
 	}
-	wg.Wait()
 	jsonBytes, _ := json.Marshal(res)
 	return string(jsonBytes), nil
 }
 
-func (e *ExportTool) RunExportGraph(ctx context.Context, exportTaskID string, msgChan chan string, questing string) ([]*schema.Message, error) {
-	cbh, flusher := langfuse.NewLangfuseHandler(&langfuse.Config{
-		Host:      e.C.Langfuse.Host,
-		PublicKey: e.C.Langfuse.PublicKey,
-		SecretKey: e.C.Langfuse.SecretKey,
-	})
-	callbacks.AppendGlobalHandlers(cbh)
+func (e *ExportTool) RunExportGraph(ctx context.Context, exportTaskID string, questing string) ([]*schema.Message, error) {
 	r, err := e.ExportGraph.Buildmytest2(ctx)
 	if err != nil {
 		fmt.Printf("编译Graph流程失败：%v\n", err)
 		return nil, err
 	}
-	defer close(msgChan)
 	messageBody := export_graph.GraphChoice{}
 	json.Unmarshal([]byte(questing), &messageBody)
 	messageBody.ExportTaskID = exportTaskID
@@ -99,18 +77,27 @@ func (e *ExportTool) RunExportGraph(ctx context.Context, exportTaskID string, ms
 		Role:    schema.User,
 		Content: string(questings),
 	}}
+	now := func() string { return time.Now().Format("15:04:05") }
 	handler := callbacks.NewHandlerBuilder().
 		OnStartFn(func(ctx context.Context, info *callbacks.RunInfo, input callbacks.CallbackInput) context.Context {
 			if info.Name != "" {
-				sseMsg := e.buildSSEEvent("startprogress", exportTaskID, info.Name, "start")
-				msgChan <- sseMsg
+				progress.TryPublish(ctx, progress.ProgressEvent{
+					Kind:   progress.KindStepStart,
+					TaskID: exportTaskID,
+					Node:   info.Name,
+					Time:   now(),
+				})
 			}
 			return ctx
 		}).
 		OnEndFn(func(ctx context.Context, info *callbacks.RunInfo, output callbacks.CallbackOutput) context.Context {
 			if info.Name != "" {
-				sseMsg := e.buildSSEEvent("endprogress", exportTaskID, info.Name, "end")
-				msgChan <- sseMsg
+				progress.TryPublish(ctx, progress.ProgressEvent{
+					Kind:   progress.KindStepEnd,
+					TaskID: exportTaskID,
+					Node:   info.Name,
+					Time:   now(),
+				})
 			}
 			return ctx
 		}).
@@ -121,20 +108,11 @@ func (e *ExportTool) RunExportGraph(ctx context.Context, exportTaskID string, ms
 	}
 
 	url := fmt.Sprintf("%s/%s.xlsx", e.C.ExportHost, exportTaskID)
-	sseMsg := fmt.Sprintf("event: progress\ndata: {\"task_id\":\"%s\",\"status\":\"completed\",\"url\":\"%s\"}\n\n", exportTaskID, url)
-	//	e.graphEndSaveRes(ctx, url)
-	msgChan <- sseMsg
-	flusher()
+	progress.TryPublish(ctx, progress.ProgressEvent{
+		Kind:         progress.KindExportComplete,
+		TaskID:       exportTaskID,
+		ExportStatus: "completed",
+		URL:          url,
+	})
 	return ree, nil
-}
-
-func (e *ExportTool) buildSSEEvent(eventType string, taskID string, node string, status string) string {
-	progress := map[string]any{
-		"task_id": taskID,
-		"node":    node,
-		"status":  status,
-		"time":    time.Now().Format("15:04:05"),
-	}
-	data, _ := json.Marshal(progress)
-	return fmt.Sprintf("event: %s\ndata: %s\n\n", eventType, string(data))
 }

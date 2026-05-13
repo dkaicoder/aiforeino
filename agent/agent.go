@@ -2,7 +2,6 @@ package agent
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -11,10 +10,12 @@ import (
 	"main/config"
 	"main/graph/export_graph"
 	"main/internal/model"
+	"main/internal/observability"
 	"main/internal/repository"
-	"main/pkg/common"
 	"main/pkg/llm"
+	"main/pkg/progress"
 	"net/http"
+	"sync"
 	"time"
 
 	"github.com/cloudwego/eino/components/tool"
@@ -82,16 +83,11 @@ func (e *Agent) getChatHistory(ctx context.Context, question string) (output []*
 }
 
 // 大模型聊天
-func (e *Agent) bigChatModel(ctx context.Context, question string, w http.ResponseWriter, flusher http.Flusher) *schema.StreamReader[*schema.Message] {
+func (e *Agent) bigChatModel(ctx context.Context, question string, w http.ResponseWriter, flusher http.Flusher) (*schema.StreamReader[*schema.Message], error) {
 	chatModel, err := llm.NewChatModelFactory(ctx, "doubao-1-5-pro-32k-250115")
 	if err != nil {
-		panic(err)
+		return nil, fmt.Errorf("初始化大模型失败: %w", err)
 	}
-	emitter := &common.LogEmitter{
-		W:       w,
-		Flusher: flusher,
-	}
-	execCtx := common.WithProgressEmitter(ctx, emitter)
 	toolList := []tool.BaseTool{
 		&tool2.ExportTool{
 			ExportGraph: e.ExportGraph,
@@ -103,9 +99,13 @@ func (e *Agent) bigChatModel(ctx context.Context, question string, w http.Respon
 		ToolsConfig:      compose.ToolsNodeConfig{Tools: toolList},
 	})
 
+	if err != nil {
+		return nil, fmt.Errorf("初始化智能体失败: %w", err)
+	}
+
 	getChatHistoryFunc, err := e.getChatHistory(ctx, question)
 	if err != nil {
-		log.Fatalf("获取历史对话失败: %v", err)
+		return nil, fmt.Errorf("获取历史对话失败: %w", err)
 	}
 	userQ := &schema.Message{
 		Role:    schema.User,
@@ -125,27 +125,65 @@ func (e *Agent) bigChatModel(ctx context.Context, question string, w http.Respon
 		Content: prompt,
 	}
 	getChatHistoryFunc = append(getChatHistoryFunc, userQ, system)
-	streamResult, err := agent.Stream(execCtx, getChatHistoryFunc)
-	return streamResult
+	streamResult, err := agent.Stream(ctx, getChatHistoryFunc)
+	if err != nil {
+		return nil, fmt.Errorf("发起流式响应失败: %w", err)
+	}
+	return streamResult, nil
 }
 
 func (e *Agent) StreamHandler(g *gin.Context) {
+	defer observability.FlushLangfuse()
+
 	w := g.Writer
-	// 设置响应头
 	w.Header().Set("Content-Type", "text/event-stream")
 	w.Header().Set("Cache-Control", "no-cache")
 	w.Header().Set("Connection", "keep-alive")
 	question := g.Query("question")
+	if question == "" {
+		g.JSON(http.StatusBadRequest, gin.H{"error": "question is required"})
+		return
+	}
 	flusher, ok := w.(http.Flusher)
 	if !ok {
 		http.Error(w, "Streaming unsupported!", http.StatusInternalServerError)
 		return
 	}
 
-	stream := e.bigChatModel(g, question, w, flusher)
+	evCh := make(chan progress.ProgressEvent, 64)
+	sink := progress.NewChanSink(evCh)
+	baseCtx := g.Request.Context()
+	ctx := progress.WithSink(baseCtx, sink)
+
+	var sseMu sync.Mutex
+	withSSE := func(fn func()) {
+		sseMu.Lock()
+		defer sseMu.Unlock()
+		fn()
+	}
+
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		for ev := range evCh {
+			withSSE(func() {
+				_ = progress.WriteSSE(w, flusher, ev)
+			})
+		}
+	}()
+	defer func() {
+		close(evCh)
+		<-done
+	}()
+
+	stream, err := e.bigChatModel(ctx, question, w, flusher)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 	defer stream.Close()
 
-	ctx, cancel := context.WithCancel(context.Background())
+	saveCtx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	var reposeAnswer string
 	for {
@@ -154,14 +192,24 @@ func (e *Agent) StreamHandler(g *gin.Context) {
 			if errors.Is(err, io.EOF) {
 				break
 			}
-			fmt.Fprintf(w, "data: Error: %v\n\n", err)
-			flusher.Flush()
+			withSSE(func() {
+				fmt.Fprintf(w, "data: Error: %v\n\n", err)
+				flusher.Flush()
+			})
 			break
 		}
 		reposeAnswer += response.Content
-		fmt.Fprintf(w, "data: %s\n\n", response.Content)
-		flusher.Flush()
+		withSSE(func() {
+			fmt.Fprintf(w, "data: %s\n\n", response.Content)
+			flusher.Flush()
+		})
 	}
+
+	withSSE(func() {
+		fmt.Fprintf(w, "data: [DONE]\n\n")
+		flusher.Flush()
+	})
+
 	messageId := fmt.Sprintf("%d%d", time.Now().UnixNano(), time.Now().UnixNano()%1000)
 	chatMessage := &model.ChatMessage{
 		MsgID:     messageId,
@@ -169,9 +217,9 @@ func (e *Agent) StreamHandler(g *gin.Context) {
 		Content:   reposeAnswer,
 		Timestamp: time.Now().Unix(),
 	}
-	err := e.ChatHistoryRepo.SaveChatMessage(ctx, "session_12345", chatMessage)
+	err = e.ChatHistoryRepo.SaveChatMessage(saveCtx, "session_12345", chatMessage)
 	if err != nil {
-		log.Fatalf("保存消息失败：%v", err)
+		log.Printf("保存消息失败: %v", err)
 	}
 }
 
@@ -179,11 +227,8 @@ func (e *Agent) GetHis(g *gin.Context) {
 	ctx := context.Background()
 	getChatHistory, err := e.ChatHistoryRepo.GetChatHistory(ctx, "session_12345", 10, 0)
 	if err != nil {
-		panic(fmt.Errorf("读取历史对话失败：%w", err))
+		g.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("读取历史对话失败: %v", err)})
+		return
 	}
-	j, err := json.Marshal(getChatHistory)
-	if err != nil {
-		panic(err)
-	}
-	g.Data(http.StatusOK, "application/json", j)
+	g.JSON(http.StatusOK, getChatHistory)
 }
