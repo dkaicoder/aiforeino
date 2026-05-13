@@ -1,6 +1,6 @@
 # AiForEino
 
-基于字节跳动开源框架 **[Eino](https://github.com/cloudwego/eino)** 的示例应用：提供 **HTTP 流式对话**（SSE）、**工具调用（数据导出）**、**Redis 会话历史**、**MySQL 业务数据** 与可选的 **Langfuse** 观测。仓库中另含 **RAG 演示代码**（`demo_rag/`）与 **Redis Stack** 向量索引相关依赖，可按需启用。
+基于字节跳动开源框架 **[Eino](https://github.com/cloudwego/eino)** 的示例应用：提供 **HTTP 流式对话**（SSE）、**工具调用（数据导出）**、**Redis 会话历史**、**MySQL 业务数据** 与可选的 **Langfuse** 观测。
 
 ---
 
@@ -45,7 +45,6 @@ pkg/
   llm/                 # 模型工厂等
 router/                # Gin 路由与优雅停机
 static/home/           # 聊天页等静态资源
-demo_rag/              # RAG 管道演示（索引 / 检索等，与主 Web 入口相对独立）
 config/                # 配置文件（勿将真实密钥提交版本库）
 ```
 
