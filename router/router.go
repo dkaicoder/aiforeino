@@ -42,5 +42,7 @@ func (r *Router) route(root *gin.RouterGroup) {
 		api.GET("/stream", r.agentApi.StreamHandler)
 	}
 	staticHomeDir, _ := filepath.Abs("./static/home")
+	file, _ := filepath.Abs("./static")
 	root.Static("/static", staticHomeDir)
+	root.Static("/downfile", file)
 }
