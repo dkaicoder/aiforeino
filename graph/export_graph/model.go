@@ -9,7 +9,7 @@ import (
 
 // newChatModel component initialization function of node 'ChatModel5' in graph 'mytest2'
 func newChatModel(ctx context.Context) (cm model.ChatModel, err error) {
-	cm, err = llm.NewChatModelFactory(ctx, "doubao-1-5-pro-32k-250115")
+	cm, err = llm.NewChatModelFactory(ctx, "doubao-seed-1-6-flash-250828")
 	if err != nil {
 		return nil, err
 	}
@@ -17,7 +17,7 @@ func newChatModel(ctx context.Context) (cm model.ChatModel, err error) {
 }
 
 func newChatModelDoubao15pro(ctx context.Context) (cm model.ChatModel, err error) {
-	cm, err = llm.NewChatModelFactory(ctx, "doubao-1-5-pro-32k-250115")
+	cm, err = llm.NewChatModelFactory(ctx, "doubao-seed-1-6-flash-250828")
 	if err != nil {
 		return nil, err
 	}

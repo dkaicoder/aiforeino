@@ -84,7 +84,7 @@ func (e *Agent) getChatHistory(ctx context.Context, question string) (output []*
 
 // 大模型聊天
 func (e *Agent) bigChatModel(ctx context.Context, question string, w http.ResponseWriter, flusher http.Flusher) (*schema.StreamReader[*schema.Message], error) {
-	chatModel, err := llm.NewChatModelFactory(ctx, "doubao-1-5-pro-32k-250115")
+	chatModel, err := llm.NewChatModelFactory(ctx, e.C.ChatModel)
 	if err != nil {
 		return nil, fmt.Errorf("初始化大模型失败: %w", err)
 	}
