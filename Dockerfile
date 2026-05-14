@@ -1,5 +1,5 @@
 # 第一阶段：构建 Go 应用
-FROM golang:1.24.6-alpine AS builder
+FROM golang:1.25.0-alpine AS builder
 ENV GO111MODULE=on \
     GOPROXY=https://goproxy.cn,direct \
     CGO_ENABLED=0 \
