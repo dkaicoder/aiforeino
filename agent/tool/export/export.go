@@ -9,9 +9,7 @@ import (
 	"main/pkg/progress"
 	"time"
 
-	"github.com/cloudwego/eino/callbacks"
 	"github.com/cloudwego/eino/components/tool"
-	"github.com/cloudwego/eino/compose"
 	"github.com/cloudwego/eino/schema"
 )
 
@@ -77,32 +75,34 @@ func (e *ExportTool) RunExportGraph(ctx context.Context, exportTaskID string, qu
 		Role:    schema.User,
 		Content: string(questings),
 	}}
-	now := func() string { return time.Now().Format("15:04:05") }
-	handler := callbacks.NewHandlerBuilder().
-		OnStartFn(func(ctx context.Context, info *callbacks.RunInfo, input callbacks.CallbackInput) context.Context {
-			if info.Name != "" {
-				progress.TryPublish(ctx, progress.ProgressEvent{
-					Kind:   progress.KindStepStart,
-					TaskID: exportTaskID,
-					Node:   info.Name,
-					Time:   now(),
-				})
-			}
-			return ctx
-		}).
-		OnEndFn(func(ctx context.Context, info *callbacks.RunInfo, output callbacks.CallbackOutput) context.Context {
-			if info.Name != "" {
-				progress.TryPublish(ctx, progress.ProgressEvent{
-					Kind:   progress.KindStepEnd,
-					TaskID: exportTaskID,
-					Node:   info.Name,
-					Time:   now(),
-				})
-			}
-			return ctx
-		}).
-		Build()
-	ree, err := r.Invoke(ctx, maps, compose.WithCallbacks(handler))
+	//{
+	//	now := func() string { return time.Now().Format("15:04:05") }
+	//    handler := callbacks.NewHandlerBuilder().
+	//		OnStartFn(func(ctx context.Context, info *callbacks.RunInfo, input callbacks.CallbackInput) context.Context {
+	//			if info.Name != "" {
+	//				progress.TryPublish(ctx, progress.ProgressEvent{
+	//					Kind:   progress.KindStepStart,
+	//					TaskID: exportTaskID,
+	//					Node:   info.Name,
+	//					Time:   now(),
+	//				})
+	//			}
+	//			return ctx
+	//		}).
+	//		OnEndFn(func(ctx context.Context, info *callbacks.RunInfo, output callbacks.CallbackOutput) context.Context {
+	//			if info.Name != "" {
+	//				progress.TryPublish(ctx, progress.ProgressEvent{
+	//					Kind:   progress.KindStepEnd,
+	//					TaskID: exportTaskID,
+	//					Node:   info.Name,
+	//					Time:   now(),
+	//				})
+	//			}
+	//			return ctx
+	//		}).
+	//		Build()
+	//}
+	ree, err := r.Invoke(ctx, maps)
 	if err != nil {
 		return nil, err
 	}

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"main/internal/database"
 	"main/internal/model"
+	"main/pkg/progress"
 	"time"
 
 	"github.com/cloudwego/eino/components/prompt"
@@ -16,6 +17,21 @@ import (
 
 // newLambda component initialization function of node 'TransformForEnd' in graph 'mytest2'
 func newLambda(ctx context.Context, input []*schema.Message) (output []*schema.Message, err error) {
+	var state *MyGraphState
+	err = compose.ProcessState[*MyGraphState](ctx, func(ctx context.Context, s *MyGraphState) error {
+		state = s
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	exportId := state.ExportTaskID
+	progress.TryPublish(ctx, progress.ProgressEvent{
+		Kind:   progress.KindStepStart,
+		TaskID: exportId,
+		Node:   "正在导出数据到Excel文件",
+		Time:   time.Now().Format("15:04:05"),
+	})
 	res := struct {
 		Status int    `json:"status"`
 		Msg    string `json:"msg"`
@@ -34,16 +50,6 @@ func newLambda(ctx context.Context, input []*schema.Message) (output []*schema.M
 	if exists != 1 {
 		return nil, fmt.Errorf("改条件范围没有任何数据，请调整后重新导出")
 	}
-	var state *MyGraphState
-	err = compose.ProcessState[*MyGraphState](ctx, func(ctx context.Context, s *MyGraphState) error {
-		state = s
-		return nil
-	})
-	if err != nil {
-		return nil, err
-	}
-	exportId := state.ExportTaskID
-
 	go func() {
 		downloadList := &model.DownloadList{
 			Name:       exportId,
@@ -121,6 +127,13 @@ func newLambda3(ctx context.Context, input []*schema.Message) (output []*schema.
 		Role:    schema.User,
 		Content: question,
 	}
+	progress.TryPublish(ctx, progress.ProgressEvent{
+		Kind:         progress.KindStepStart,
+		TaskID:       graphChoice.ExportTaskID,
+		ExportStatus: "completed",
+		Node:         "正在解析用户请求，识别相关表",
+		Time:         time.Now().Format("15:04:05"),
+	})
 	return []*schema.Message{systemRole, userRole}, nil
 }
 
