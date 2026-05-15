@@ -1,761 +1,606 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="icon" type="image/png" href="./favicon.png" />
-    <title>AiForEino</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-        }
+  <meta charset="utf-8"/>
+  <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+  <title>AI 智能助手 - AiForEino</title>
+  <script src="https://modao.cc/agent-py/static/source/js/tailwindcss.js"></script>
+  <script src="https://modao.cc/agent-py/static/source/js/iconify-icon.min.js"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 
-        body {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            padding: 20px;
-            min-height: 100vh;
-        }
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      margin: 0;
+      overflow: hidden;
+      background-color: #020617;
+    }
 
-        .chat-container {
-            max-width: 800px;
-            margin: 0 auto;
-            background: rgba(255, 255, 255, 0.95);
-            border-radius: 20px;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-            overflow: hidden;
-            backdrop-filter: blur(10px);
-        }
+    .glass-panel {
+      background: rgba(15, 23, 42, 0.6);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.8);
+    }
 
-        .chat-header {
-            background: linear-gradient(90deg, #2f54eb 0%, #1d39c4 100%);
-            color: white;
-            padding: 20px 24px;
-            font-size: 18px;
-            font-weight: 600;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
+    .ai-bubble {
+      background: linear-gradient(135deg, rgba(59, 130, 246, 0.15), rgba(147, 51, 234, 0.15));
+      border: 1px solid rgba(59, 130, 246, 0.2);
+    }
 
-        .refresh-history {
-            font-size: 13px;
-            background: rgba(255,255,255,0.15);
-            border: 1px solid rgba(255,255,255,0.3);
-            color: white;
-            padding: 6px 16px;
-            border-radius: 20px;
-            cursor: pointer;
-            transition: all 0.3s;
-        }
-        .refresh-history:hover {
-            background: rgba(255,255,255,0.25);
-            transform: translateY(-1px);
-        }
+    .user-bubble {
+      background: rgba(255, 255, 255, 0.95);
+      color: #0f172a;
+      width: fit-content;
+      max-width: 80%;
+    }
 
-        .chat-messages {
-            height: 500px;
-            padding: 24px;
-            overflow-y: auto;
-            background: #f8fafc;
-        }
+    .custom-scrollbar::-webkit-scrollbar {
+      width: 4px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+      background: rgba(59, 130, 246, 0.3);
+      border-radius: 10px;
+    }
 
-        .message {
-            margin-bottom: 20px;
-            max-width: 85%;
-            animation: fadeIn 0.3s ease;
-        }
+    @keyframes fadeInSlideUp {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
 
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
+    .message-animate {
+      animation: fadeInSlideUp 0.3s ease-out forwards;
+    }
 
-        .user-message {
-            margin-left: auto;
-            display: flex;
-            justify-content: flex-end;
-        }
+    .typing-dot {
+      width: 6px;
+      height: 6px;
+      background-color: #3B82F6;
+      border-radius: 50%;
+      display: inline-block;
+      animation: typing 1.4s infinite ease-in-out both;
+    }
+    .typing-dot:nth-child(1) { animation-delay: -0.32s; }
+    .typing-dot:nth-child(2) { animation-delay: -0.16s; }
 
-        .user-message .message-content {
-            max-width: 70%;
-            text-align: left;
-            white-space: pre-wrap;
-            background: #2f54eb;
-            color: white;
-            padding: 12px 18px;
-            border-radius: 20px 20px 4px 20px;
-            font-size: 14px;
-            line-height: 1.5;
-            box-shadow: 0 4px 12px rgba(47, 84, 235, 0.3);
-        }
+    @keyframes typing {
+      0%, 80%, 100% { transform: scale(0); }
+      40% { transform: scale(1.0); }
+    }
 
-        .assistant-message {
-            margin-right: auto;
-            display: flex;
-            gap: 12px;
-        }
+    .input-glow:focus {
+      box-shadow: 0 0 15px rgba(59, 130, 246, 0.5);
+      border-color: rgba(59, 130, 246, 0.5);
+    }
 
-        .message-avatar {
-            width: 36px;
-            height: 36px;
-            border-radius: 50%;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 16px;
-            flex-shrink: 0;
-            box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
-        }
+    canvas {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 0;
+    }
 
-        .message-body {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            gap: 6px;
-        }
-
-        /* 【思考区】小字灰色，临时状态 */
-        .thinking-area {
-            font-size: 12px;
-            color: #8c8c8c;
-            line-height: 1.6;
-            padding: 8px 12px;
-            background: rgba(0,0,0,0.03);
-            border-radius: 12px 12px 12px 4px;
-            border-left: 3px solid #d9d9d9;
-            font-family: "Menlo", "Monaco", monospace;
-            transition: all 0.3s;
-            max-height: 200px;
-            overflow: hidden;
-        }
-
-        .thinking-area.thinking-done {
-            opacity: 0.5;
-            max-height: 20px;
-            padding: 0 12px;
-            overflow: hidden;
-            font-size: 11px;
-            color: #bfbfbf;
-        }
-
-        .thinking-step {
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            margin: 2px 0;
-        }
-
-        .thinking-dot {
-            width: 4px;
-            height: 4px;
-            background: #bfbfbf;
-            border-radius: 50%;
-        }
-
-        /* 【正式回复区】正常字号，白色卡片 */
-        .message-content {
-            background: white;
-            padding: 14px 18px;
-            border-radius: 4px 18px 18px 18px;
-            font-size: 14px;
-            line-height: 1.6;
-            color: #262626;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
-            border: 1px solid #e8e8e8;
-            min-height: 44px;
-            display: none; /* 初始隐藏，等有结果再显示 */
-
-        }
-
-        .message-content.show {
-            display: block;
-            animation: slideUp 0.3s ease;
-        }
-
-        @keyframes slideUp {
-            from { opacity: 0; transform: translateY(5px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-
-        .message-content.success {
-            color: #52c41a;
-            border-left: 3px solid #52c41a;
-        }
-
-        .message-content.error {
-            color: #ff4d4f;
-            border-left: 3px solid #ff4d4f;
-            background: #fff2f0;
-        }
-
-        /* Loading动画 */
-        .ai-loading-inline {
-            display: inline-flex;
-            align-items: center;
-            gap: 4px;
-        }
-        .loading-dot {
-            width: 4px;
-            height: 4px;
-            background: #bfbfbf;
-            border-radius: 50%;
-            animation: dotPulse 1.4s infinite;
-        }
-        .loading-dot:nth-child(2) { animation-delay: 0.2s; }
-        .loading-dot:nth-child(3) { animation-delay: 0.4s; }
-        @keyframes dotPulse {
-            0%, 80%, 100% { transform: scale(0); opacity: 0.5; }
-            40% { transform: scale(1); opacity: 1; }
-        }
-
-        .chat-input-area {
-            padding: 20px 24px;
-            border-top: 1px solid #e8e8e8;
-            background: white;
-        }
-        .input-wrapper {
-            display: flex;
-            gap: 12px;
-            align-items: flex-end;
-        }
-        #message-input {
-            flex: 1;
-            padding: 12px 18px;
-            border: 1px solid #d9d9d9;
-            border-radius: 24px;
-            font-size: 14px;
-            outline: none;
-            resize: none;
-            height: 48px;
-            max-height: 120px;
-            transition: all 0.3s;
-        }
-        #message-input:focus {
-            border-color: #2f54eb;
-            box-shadow: 0 0 0 3px rgba(47, 84, 235, 0.1);
-        }
-        #send-btn {
-            padding: 12px 28px;
-            background: #2f54eb;
-            color: white;
-            border: none;
-            border-radius: 24px;
-            font-size: 14px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s;
-            height: 44px;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-        }
-        #send-btn:hover:not(:disabled) {
-            background: #1d39c4;
-            transform: translateY(-1px);
-            box-shadow: 0 4px 12px rgba(47, 84, 235, 0.3);
-        }
-        #send-btn:disabled {
-            background: #bfbfbf;
-            cursor: not-allowed;
-            opacity: 0.8;
-        }
-
-        .btn-loading {
-            width: 16px;
-            height: 16px;
-            border: 2px solid #fff;
-            border-radius: 50%;
-            border-top-color: transparent;
-            animation: spin 1s linear infinite;
-        }
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
-
-        .history-loading {
-            text-align: center;
-            color: #8c8c8c;
-            padding: 40px 0;
-            font-size: 14px;
-        }
-
-        /* 滚动条 */
-        .chat-messages::-webkit-scrollbar {
-            width: 6px;
-        }
-        .chat-messages::-webkit-scrollbar-track {
-            background: transparent;
-        }
-        .chat-messages::-webkit-scrollbar-thumb {
-            background: #d9d9d9;
-            border-radius: 3px;
-        }
-        .chat-messages::-webkit-scrollbar-thumb:hover {
-            background: #bfbfbf;
-        }
-        .loading-dot {
-            display: inline-block;
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
-            background: #666;
-            margin: 0 2px;
-            animation: loading 1.4s infinite ease-in-out both;
-        }
-        .loading-dot:nth-child(2) {
-            animation-delay: -0.3s;
-        }
-        .loading-dot:nth-child(3) {
-            animation-delay: -0.6s;
-        }
-        @keyframes loading {
-            0%, 80%, 100% { transform: scale(0); }
-            40% { transform: scale(1); }
-        }
-
-        .ai-loading-inlines {
-            display: flex;
-            align-items: center;
-            gap: 4px;
-            color: #666;
-        }
-    </style>
+    /* 磨砂玻璃闪烁轮播 */
+    .thought-flash {
+      background: rgba(255, 255, 255, 0.06);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border-radius: 6px;
+      padding: 6px 10px;
+      animation: flashSlide 1.6s infinite ease-in-out;
+    }
+    @keyframes flashSlide {
+      0% { opacity: 0.6; background: rgba(255,255,255,0.06); }
+      50% { opacity: 1; background: rgba(59, 130, 246, 0.15); }
+      100% { opacity: 0.6; background: rgba(255,255,255,0.06); }
+    }
+  </style>
 </head>
-<body>
-<div class="chat-container">
-    <div class="chat-header">
-        <span>AiForEino</span>
-        <button class="refresh-history" onclick="loadChatHistory()">刷新历史记录</button>
-    </div>
+<body class="text-slate-200">
+<canvas id="bgCanvas"></canvas>
 
-    <div class="chat-messages" id="chat-messages">
-        <div class="history-loading" id="history-loading">加载历史记录中...</div>
+<nav class="fixed top-0 left-0 w-full z-50 px-8 py-6 flex items-center justify-between pointer-events-none">
+  <div class="flex items-center gap-3 pointer-events-auto cursor-pointer">
+    <div class="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center shadow-lg shadow-blue-500/20">
+      <iconify-icon class="text-white text-2xl" icon="ri:robot-fill"></iconify-icon>
     </div>
+    <span class="text-2xl font-bold tracking-tight text-white">AiForEino</span>
+  </div>
+  <div class="pointer-events-auto">
+    <button class="text-slate-400 hover:text-white transition-colors">
+      <iconify-icon class="text-2xl" icon="ri:settings-4-line"></iconify-icon>
+    </button>
+  </div>
+</nav>
 
-    <div class="chat-input-area">
-        <div class="input-wrapper">
-            <textarea id="message-input" placeholder="输入你的问题，按回车或点击发送..." rows="1"></textarea>
-            <button id="send-btn">发送</button>
+<main class="relative z-10 w-full h-screen flex items-center justify-center p-4 pt-24">
+  <div class="w-full max-w-4xl h-[80vh] glass-panel rounded-3xl flex flex-col overflow-hidden">
+    <div class="px-6 py-4 border-b border-white/10 flex items-center justify-between bg-white/5">
+      <div class="flex items-center gap-3">
+        <div class="relative">
+          <div class="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
+            <iconify-icon class="text-white text-xl" icon="ri:ai-generate"></iconify-icon>
+          </div>
+          <div class="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-500 border-2 border-[#0f172a] rounded-full"></div>
         </div>
+        <div>
+          <h2 class="text-sm font-semibold text-white">AI 智能助手</h2>
+          <p class="text-[10px] text-slate-400">基于 EINO RAG 技术构建 • 在线</p>
+        </div>
+      </div>
+      <div class="flex gap-4 items-center">
+        <button type="button" id="refresh-history-btn" class="text-xs text-slate-400 hover:text-white transition-colors px-2 py-1 rounded-lg border border-white/10 hover:border-white/20 bg-white/5">
+          刷新历史
+        </button>
+        <iconify-icon class="text-slate-400 cursor-pointer hover:text-white transition-colors" icon="ri:more-2-fill"></iconify-icon>
+      </div>
     </div>
-</div>
+
+    <div class="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar" id="chat-container">
+      <div class="text-center text-sm text-slate-500 py-12" id="history-loading">加载历史记录中...</div>
+    </div>
+
+    <!-- 保留 AI 思考中 loading -->
+    <template id="thinking-template">
+      <div class="flex flex-col gap-2 items-start message-animate thinking-panel">
+        <div class="ai-bubble px-4 py-4 rounded-2xl rounded-tl-none max-w-[80%] text-sm leading-relaxed shadow-sm">
+          <div class="flex items-center gap-2 mb-3">
+            <iconify-icon class="text-blue-400 text-sm" icon="line-md:loading-twotone-loop"></iconify-icon>
+            <span class="text-xs font-medium text-blue-300 thinking-status-label">AI 思考中</span>
+          </div>
+          <ul class="space-y-2.5 steps-list"></ul>
+        </div>
+      </div>
+    </template>
+
+    <div class="p-6 bg-white/5 border-t border-white/10">
+      <div class="relative flex items-center gap-3">
+        <div class="flex-1 relative">
+          <input class="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 text-sm focus:outline-none input-glow transition-all placeholder:text-slate-500" id="user-input" placeholder="输入您的问题..." type="text"/>
+          <div class="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-3 text-slate-500">
+            <iconify-icon class="cursor-pointer hover:text-blue-400 transition-colors" icon="ri:attachment-2"></iconify-icon>
+            <iconify-icon class="cursor-pointer hover:text-blue-400 transition-colors" icon="ri:mic-line"></iconify-icon>
+          </div>
+        </div>
+        <button class="w-12 h-12 bg-blue-600 hover:bg-blue-500 rounded-2xl flex items-center justify-center transition-all active:scale-95 shadow-lg shadow-blue-500/20 group" id="send-btn">
+          <iconify-icon class="text-white text-xl group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" icon="ri:send-plane-fill" id="send-icon"></iconify-icon>
+        </button>
+      </div>
+      <p class="text-center text-[10px] text-slate-500 mt-4">
+        AI 可能会产生误差，请核实重要信息。由 AiForEino 提供技术支持。
+      </p>
+    </div>
+  </div>
+</main>
 
 <script>
-    // 获取DOM元素
-    const chatMessages = document.getElementById('chat-messages');
-    const messageInput = document.getElementById('message-input');
-    const sendBtn = document.getElementById('send-btn');
-    let eventSource = null;
+  // 背景粒子
+  const canvas = document.getElementById('bgCanvas');
+  const ctx = canvas.getContext('2d');
+  let width, height, particles = [];
+  const particleCount = 60;
+  const maxDistance = 150;
 
-    // 历史记录接口地址（替换为你的实际接口地址）
-    const HISTORY_API_URL = 'https://dkaiai.site/chat/history';
-
-    // HTML转义函数
-    function escapeHtml(unsafe) {
-        if (!unsafe) return '';
-        return unsafe
-            .replace(/&/g, "&amp;")
-            .replace(/</g, "&lt;")
-            .replace(/>/g, "&gt;")
-            .replace(/"/g, "&quot;")
-            .replace(/'/g, "&#039;");
+  function initCanvas() {
+    width = window.innerWidth;
+    height = window.innerHeight;
+    canvas.width = width;
+    canvas.height = height;
+    particles = [];
+    for (let i = 0; i < particleCount; i++) {
+      particles.push({
+        x: Math.random() * width,
+        y: Math.random() * height,
+        vx: (Math.random() - 0.5) * 0.5,
+        vy: (Math.random() - 0.5) * 0.5,
+        size: Math.random() * 2 + 1
+      });
     }
+  }
 
-    // 加载历史聊天记录
-    async function loadChatHistory() {
+  function drawBackground() {
+    const gradient = ctx.createRadialGradient(width / 2, height / 2, 0, width / 2, height / 2, width);
+    gradient.addColorStop(0, '#0f172a');
+    gradient.addColorStop(1, '#020617');
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, width, height);
+
+    particles.forEach((p, i) => {
+      p.x += p.vx;
+      p.y += p.vy;
+      if (p.x < 0 || p.x > width) p.vx *= -1;
+      if (p.y < 0 || p.y > height) p.vy *= -1;
+
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(59, 130, 246, 0.5)';
+      ctx.fill();
+
+      for (let j = i + 1; j < particles.length; j++) {
+        const p2 = particles[j];
+        const dx = p.x - p2.x;
+        const dy = p.y - p2.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist < maxDistance) {
+          ctx.beginPath();
+          ctx.moveTo(p.x, p.y);
+          ctx.lineTo(p2.x, p2.y);
+          ctx.strokeStyle = `rgba(59, 130, 246, ${1 - dist / maxDistance * 0.8})`;
+          ctx.lineWidth = 0.5;
+          ctx.stroke();
+        }
+      }
+    });
+    requestAnimationFrame(drawBackground);
+  }
+
+  window.addEventListener('resize', initCanvas);
+  initCanvas();
+  drawBackground();
+
+  // 聊天逻辑：历史记录 + SSE + 思考进度（保留 thought-flash 轮播样式）
+  const chatContainer = document.getElementById('chat-container');
+  const userInput = document.getElementById('user-input');
+  const sendBtn = document.getElementById('send-btn');
+  const sendIcon = document.getElementById('send-icon');
+  const thinkingTemplate = document.getElementById('thinking-template');
+  const refreshHistoryBtn = document.getElementById('refresh-history-btn');
+
+  const HISTORY_API_URL = '/agent/api/chat/history';
+  const MAX_STEP_COUNT = 5;
+  let eventSource = null;
+
+  function escapeHtml(unsafe) {
+    if (unsafe === undefined || unsafe === null) return '';
+    return String(unsafe)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+  }
+
+  function scrollToBottom() {
+    chatContainer.scrollTop = chatContainer.scrollHeight;
+  }
+
+  function addMessage(content, isUser = false, opts = {}) {
+    const asHtml = opts.asHtml === true;
+    const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const messageDiv = document.createElement('div');
+    messageDiv.className = `flex flex-col gap-2 w-full ${isUser ? 'items-end' : 'items-start'} message-animate`;
+    let bubbleInner;
+    if (asHtml) {
+      bubbleInner = content;
+    } else {
+      const text = String(content);
+      bubbleInner = escapeHtml(isUser ? text.trim() : text);
+    }
+    const bubbleClass = isUser
+      ? 'user-bubble px-4 py-3 rounded-2xl rounded-tr-none text-sm leading-relaxed shadow-sm break-words'
+      : 'ai-bubble px-4 py-3 rounded-2xl rounded-tl-none max-w-[80%] text-sm leading-relaxed shadow-sm whitespace-pre-wrap break-words';
+    messageDiv.innerHTML = `<div class="${bubbleClass}">${bubbleInner}</div><span class="text-[10px] text-slate-500 ${isUser ? 'mr-1' : 'ml-1'}">${time}</span>`;
+    chatContainer.appendChild(messageDiv);
+    scrollToBottom();
+  }
+
+  function setUIState(enabled) {
+    userInput.disabled = !enabled;
+    sendBtn.disabled = !enabled;
+    if (!enabled) {
+      sendIcon.setAttribute('icon', 'line-md:loading-twotone-loop');
+      sendBtn.classList.remove('hover:bg-blue-500');
+      sendBtn.classList.add('bg-blue-800', 'cursor-not-allowed');
+      userInput.placeholder = 'AI 正在思考中...';
+    } else {
+      sendIcon.setAttribute('icon', 'ri:send-plane-fill');
+      sendBtn.classList.remove('bg-blue-800', 'cursor-not-allowed');
+      sendBtn.classList.add('hover:bg-blue-500');
+      userInput.placeholder = '输入您的问题...';
+      userInput.focus();
+    }
+  }
+
+  function renderHistoryMessage(role, content) {
+    if (role === 'user') {
+      addMessage(content, true);
+      return;
+    }
+    if (role === 'assistant') {
+      const isUrl = typeof content === 'string' && /^https?:\/\//.test(content);
+      if (isUrl) {
         try {
-            // 显示加载提示
-            chatMessages.innerHTML = '<div class="history-loading" id="history-loading">加载历史记录中...</div>';
-
-            // 调用历史记录接口
-            const response = await fetch(HISTORY_API_URL, {
-                method: 'GET',
-                headers: {
-                    'Content-Type': 'application/json',
-                }
-            });
-
-            if (!response.ok) {
-                throw new Error(`历史记录接口请求失败:${response.status}`);
-            }
-
-            const historyList = await response.json();
-            chatMessages.innerHTML = ''; // 清空加载提示
-
-            // 3. 渲染历史消息
-            if (historyList.length === 0) {
-                // 无历史记录时显示欢迎语
-                const welcomeMsg = document.createElement('div');
-                welcomeMsg.className = 'message assistant-message';
-                welcomeMsg.innerHTML = `
-                    <div class="message-avatar">🤖</div>
-                    <div class="message-body">
-                        <div class="message-content show">你好呀 😊！我是你的专属程序员鼓励师，有任何代码相关的烦恼都可以告诉我～</div>
-                    </div>
-                `;
-                chatMessages.appendChild(welcomeMsg);
-            } else {
-                // 遍历历史记录数组渲染
-                historyList.forEach(msg => {
-                    renderHistoryMessage(msg.role, msg.content);
-                });
-            }
-
-            // 滚动到底部
-            chatMessages.scrollTop = chatMessages.scrollHeight;
-        } catch (error) {
-            console.error('加载历史记录失败:', error);
-            chatMessages.innerHTML = `
-                <div class="history-loading" style="color: #ff4d4f;">
-                    加载历史记录失败：${error.message}
-                </div>
-            `;
-        }
+          const u = new URL(content);
+          if (u.protocol === 'http:' || u.protocol === 'https:') {
+            const href = escapeHtml(u.href);
+            addMessage(`处理完成，<a href="${href}" target="_blank" rel="noopener noreferrer" class="text-green-400 underline">点击下载</a>`, false, { asHtml: true });
+            return;
+          }
+        } catch (_) { /* fallthrough */ }
+      }
+      addMessage(content, false);
     }
+  }
 
-    // 渲染历史消息（简化版 - 只显示结果）
-    function renderHistoryMessage(role, content) {
-        if (role === 'user') {
-            const msgDiv = document.createElement('div');
-            msgDiv.className = 'message user-message';
-            msgDiv.innerHTML = `<div class="message-content show">${escapeHtml(content)}</div>`;
-            chatMessages.appendChild(msgDiv);
-        } else if (role === 'assistant') {
-            const msgDiv = document.createElement('div');
-            msgDiv.className = 'message assistant-message';
-
-            // 检测内容是否为URL链接
-            const isUrl = typeof content === 'string' && /^https?:\/\//.test(content);
-
-            if (isUrl) {
-                msgDiv.innerHTML = `
-                <div class="message-avatar">🤖</div>
-                <div class="message-body">
-                    <div class="message-content show success">
-                        处理完成，<a href="${content}" target="_blank" style="color: #52c41a; text-decoration: underline;">点击下载</a>
-                    </div>
-                </div>
-            `;
-            } else {
-                msgDiv.innerHTML = `
-                <div class="message-avatar">🤖</div>
-                <div class="message-body">
-                    <div class="message-content show">${escapeHtml(content)}</div>
-                </div>
-            `;
-            }
-            chatMessages.appendChild(msgDiv);
-        }
+  async function loadChatHistory() {
+    try {
+      chatContainer.innerHTML = '<div class="text-center text-sm text-slate-500 py-12" id="history-loading">加载历史记录中...</div>';
+      const response = await fetch(HISTORY_API_URL, {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      if (!response.ok) {
+        throw new Error(`历史记录接口请求失败: ${response.status}`);
+      }
+      const historyList = await response.json();
+      chatContainer.innerHTML = '';
+      if (!historyList || historyList.length === 0) {
+        const welcomeHtml = '你好！我是 <span class="text-blue-400 font-semibold">AiForEino</span> 智能助手，有什么可以帮你的吗？';
+        addMessage(welcomeHtml, false, { asHtml: true });
+      } else {
+        historyList.forEach((msg) => renderHistoryMessage(msg.role, msg.content));
+      }
+      scrollToBottom();
+    } catch (err) {
+      console.error('加载历史记录失败:', err);
+      chatContainer.innerHTML = `<div class="text-center text-sm text-red-400 py-12">加载历史记录失败：${escapeHtml(err.message)}</div>`;
     }
+  }
 
-    // 输入框高度自适应
-    messageInput.addEventListener('input', function() {
-        this.style.height = 'auto';
-        const newHeight = Math.min(this.scrollHeight, 120);
-        this.style.height = newHeight + 'px';
-    });
+  function generateRequestId() {
+    return 'req_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+  }
 
-    // 生成唯一请求ID
-    function generateRequestId() {
-        return 'req_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+  function appendThinkingStep(stepsList, text) {
+    const stepItem = document.createElement('li');
+    stepItem.className = 'flex items-center gap-2 text-[11px] text-slate-300 thought-flash';
+    stepItem.innerHTML = `<span>${text}</span>`;
+    stepsList.appendChild(stepItem);
+    while (stepsList.children.length > MAX_STEP_COUNT) {
+      stepsList.removeChild(stepsList.firstChild);
     }
+    scrollToBottom();
+  }
 
-    // 发送消息主函数
-    function sendMessage() {
-        const inputText = messageInput.value.trim();
-        if (!inputText) return;
+  function sendMessage() {
+    const inputText = userInput.value.trim();
+    if (!inputText) return;
 
-        const requestId = generateRequestId();
+    const requestId = generateRequestId();
+    userInput.value = '';
+    setUIState(false);
+    addMessage(inputText, true);
 
-        // 1. 清空输入框 + 按钮状态
-        messageInput.value = '';
-        messageInput.style.height = '48px';
-        sendBtn.disabled = true;
-        sendBtn.innerHTML = '<span class="btn-loading"></span>思考中...';
+    const frag = thinkingTemplate.content.cloneNode(true);
+    const thinkingPanel = frag.querySelector('.thinking-panel');
+    const stepsList = thinkingPanel.querySelector('.steps-list');
+    thinkingPanel.id = 'thinking-' + requestId;
+    stepsList.id = 'thinking-steps-' + requestId;
 
-        // 2. 添加用户消息
-        const userMessage = document.createElement('div');
-        userMessage.className = 'message user-message';
-        userMessage.innerHTML = `<div class="message-content show">${escapeHtml(inputText)}</div>`;
-        chatMessages.appendChild(userMessage);
-
-        // 3. 创建AI消息容器（包含思考区和正式回复区）
-        const assistantMessage = document.createElement('div');
-        assistantMessage.className = 'message assistant-message';
-        assistantMessage.dataset.requestId = requestId;
-        assistantMessage.innerHTML = `
-        <div class="message-avatar">🤖</div>
-        <div class="message-body">
-            <div class="thinking-area" id="thinking-${requestId}">
-                <!-- 【改动1】给loading元素加唯一ID，方便精准控制 -->
-                <div class="ai-loading-inlines" id="ai-loading-${requestId}">
-                    正在思考
-                    <span class="loading-dot"></span>
-                    <span class="loading-dot"></span>
-                    <span class="loading-dot"></span>
-                </div>
-                <div id="thinking-steps-${requestId}" style="margin-top: 4px;"></div>
-            </div>
-            <div class="message-content" id="ai-content-${requestId}"></div>
-        </div>
+    const replyWrap = document.createElement('div');
+    replyWrap.className = 'flex flex-col gap-2 items-start message-animate hidden';
+    replyWrap.id = 'ai-reply-wrap-' + requestId;
+    replyWrap.innerHTML = `
+      <div class="ai-bubble px-4 py-3 rounded-2xl rounded-tl-none max-w-[80%] text-sm leading-relaxed shadow-sm whitespace-pre-wrap" id="ai-content-${requestId}"></div>
+      <span class="text-[10px] text-slate-500 ml-1" id="ai-time-${requestId}"></span>
     `;
-        chatMessages.appendChild(assistantMessage);
-        chatMessages.scrollTop = chatMessages.scrollHeight;
 
-        // 4. 建立SSE连接
-        const encodedInput = encodeURIComponent(inputText);
-        if (eventSource) eventSource.close();
-        eventSource = new EventSource(`/stream?question=${encodedInput}&requestId=${requestId}`);
+    chatContainer.appendChild(thinkingPanel);
+    chatContainer.appendChild(replyWrap);
+    scrollToBottom();
 
-        let isTaskMode = false;
-        let thinkingQueue = [];
-        let isProcessingThinking = false;
-        let hasReceivedData = false;
-        let toolCompleted = false; // 标记工具是否完成
-        let agentReply = ''; // 存储Agent的总结回复
-        let isAgentReplying = false; // 【改动2】标记Agent是否开始回复
+    if (eventSource) {
+      eventSource.close();
+      eventSource = null;
+    }
+    const encodedInput = encodeURIComponent(inputText);
+    eventSource = new EventSource('/agent/api/stream?question=' + encodedInput + '&requestId=' + encodeURIComponent(requestId));
 
-        // 【思考过程轮播】每步间隔0.5秒
-        function processThinkingQueue() {
-            if (isProcessingThinking || thinkingQueue.length === 0) return;
+    let thinkingQueue = [];
+    let isProcessingThinking = false;
+    let hasReceivedData = false;
+    let toolCompleted = false;
+    let agentReply = '';
 
-            isProcessingThinking = true;
-            const stepsContainer = document.getElementById(`thinking-steps-${requestId}`);
-            if (!stepsContainer) return;
+    function processThinkingQueue() {
+      if (isProcessingThinking || thinkingQueue.length === 0) return;
+      isProcessingThinking = true;
+      const stepsContainer = document.getElementById('thinking-steps-' + requestId);
+      if (!stepsContainer) {
+        isProcessingThinking = false;
+        return;
+      }
 
-            function showNextStep() {
-                if (thinkingQueue.length === 0) {
-                    isProcessingThinking = false;
-                    return;
-                }
-
-                const jsonData = thinkingQueue.shift();
-                hasReceivedData = true;
-
-                // 创建步骤显示
-                const stepDiv = document.createElement('div');
-                stepDiv.className = 'thinking-step';
-                const time = jsonData.time ? jsonData.time.split(' ')[1] || jsonData.time : '';
-                const statusText = jsonData.status === 'start' ? '开始' : '完成';
-
-                stepDiv.innerHTML = `
-                <span class="thinking-dot"></span>
-                <span>${jsonData.node} ${statusText} ${time ? '(' + time + ')' : ''}</span>
-            `;
-
-                // 保持最多显示3行，超过则移除旧的
-                while (stepsContainer.children.length >= 3) {
-                    stepsContainer.removeChild(stepsContainer.firstChild);
-                }
-                stepsContainer.appendChild(stepDiv);
-
-                chatMessages.scrollTop = chatMessages.scrollHeight;
-
-                // 继续下一条
-                if (thinkingQueue.length > 0) {
-                    setTimeout(showNextStep, 500);
-                } else {
-                    isProcessingThinking = false;
-                }
-            }
-
-            showNextStep();
+      function showNextStep() {
+        if (thinkingQueue.length === 0) {
+          isProcessingThinking = false;
+          return;
         }
-
-        // 工具状态更新（仅更新进度，不终止流程）
-        function updateToolStatus(data) {
-            hasReceivedData = true;
-            toolCompleted = true; // 标记工具执行完成
-
-            const thinkingArea = document.getElementById(`thinking-${requestId}`);
-            const loadingElement = document.getElementById(`ai-loading-${requestId}`);
-
-            // 工具完成后，loading继续显示，仅更新文字提示
-            if (loadingElement) {
-                loadingElement.textContent = '工具处理完成，正在整理回复...';
-                // 【改动3】保留loading动效（重新加回dot）
-                loadingElement.innerHTML = `
-                工具处理完成，正在整理回复...
-                <span class="loading-dot"></span>
-                <span class="loading-dot"></span>
-                <span class="loading-dot"></span>
-            `;
-            }
-
-            // 工具失败时才直接显示错误（工具成功则等Agent总结）
-            if (data.status === 'error') {
-                const aiContent = document.getElementById(`ai-content-${requestId}`);
-                aiContent.classList.add('show', 'error');
-                aiContent.textContent = data.msg || '工具处理失败';
-
-                // 关闭loading
-                if (loadingElement) loadingElement.style.display = 'none';
-
-                // 关闭SSE连接，恢复按钮
-                if (eventSource) eventSource.close();
-                sendBtn.disabled = false;
-                sendBtn.innerHTML = '发送';
-            }
+        const jsonData = thinkingQueue.shift();
+        hasReceivedData = true;
+        const statusText = jsonData.status === 'start' ? '开始' : '完成';
+        const timeLabel = jsonData.time ? (jsonData.time.split(' ')[1] || jsonData.time) : '';
+        const nodeName = escapeHtml(jsonData.node || '');
+        const stepText = timeLabel
+          ? `${nodeName} ${statusText} (${escapeHtml(timeLabel)})`
+          : `${nodeName} ${statusText}`;
+        appendThinkingStep(stepsContainer, stepText);
+        if (thinkingQueue.length > 0) {
+          setTimeout(showNextStep, 500);
+        } else {
+          isProcessingThinking = false;
         }
-
-        // 真正的最终结果：Agent回复完成
-        function showAgentReply() {
-            const thinkingArea = document.getElementById(`thinking-${requestId}`);
-            const loadingElement = document.getElementById(`ai-loading-${requestId}`);
-            const aiContent = document.getElementById(`ai-content-${requestId}`);
-
-            // 关闭loading
-            if (loadingElement) loadingElement.style.display = 'none';
-
-            // 关闭SSE连接
-            if (eventSource) {
-                eventSource.close();
-                eventSource = null;
-            }
-
-            // 隐藏思考区，显示Agent总结
-            if (thinkingArea) thinkingArea.style.display = 'none';
-            aiContent.classList.add('show');
-
-            // 如果有Agent回复则显示，否则显示工具完成的默认提示
-            if (agentReply) {
-                aiContent.textContent = agentReply;
-            } else if (toolCompleted) {
-                aiContent.classList.add('success');
-                const urlData = JSON.parse(localStorage.getItem(`toolUrl_${requestId}`)) || {};
-                if (urlData.url) {
-                    aiContent.innerHTML = `处理完成，<a href="${urlData.url}" target="_blank">点击下载</a>（Agent总结：暂无回复）`;
-                } else {
-                    aiContent.textContent = '处理完成';
-                }
-            }
-
-            // 恢复按钮
-            sendBtn.disabled = false;
-            sendBtn.innerHTML = '发送';
-        }
-
-        // 5. 处理普通message事件（Agent的流式总结回复）
-        eventSource.addEventListener('message', (event) => {
-            if (event.data === '[DONE]') {
-                // 只有收到[DONE]，才是真正的对话结束
-                showAgentReply();
-                return;
-            }
-
-            if (!event.data.trim()) return;
-
-            hasReceivedData = true;
-            isAgentReplying = true; // 标记Agent开始回复
-
-            const aiContent = document.getElementById(`ai-content-${requestId}`);
-            const thinkingArea = document.getElementById(`thinking-${requestId}`);
-            const loadingElement = document.getElementById(`ai-loading-${requestId}`);
-
-            // 【改动4】Agent开始回复，立即关闭loading
-            if (loadingElement) loadingElement.style.display = 'none';
-
-            // 自然语言模式：隐藏思考区，直接显示内容（流式追加）
-            if (thinkingArea) thinkingArea.style.display = 'none';
-            if (aiContent) {
-                aiContent.classList.add('show');
-                agentReply += event.data; // 累积Agent的总结回复
-                aiContent.textContent = agentReply;
-                chatMessages.scrollTop = chatMessages.scrollHeight;
-            }
-        });
-
-        // 6. 处理 startprogress（思考步骤）
-        eventSource.addEventListener('startprogress', (event) => {
-            isTaskMode = true;
-            try {
-                const jsonData = JSON.parse(event.data);
-                thinkingQueue.push(jsonData);
-                processThinkingQueue();
-            } catch (e) {
-                console.error('解析startprogress失败:', e);
-            }
-        });
-
-        // 7. 处理 endprogress（思考步骤结束）
-        eventSource.addEventListener('endprogress', (event) => {
-            try {
-                const jsonData = JSON.parse(event.data);
-                thinkingQueue.push(jsonData); // 加入队列显示"xx完成"
-                processThinkingQueue();
-            } catch (e) {
-                console.error('解析endprogress失败:', e);
-            }
-        });
-
-        // 8. 处理 progress（工具状态）
-        eventSource.addEventListener('progress', (event) => {
-            isTaskMode = true;
-
-            let jsonData = null;
-            try {
-                jsonData = JSON.parse(event.data);
-            } catch (e) {
-                updateToolStatus({ status: 'error', msg: event.data });
-                return;
-            }
-
-            // 工具完成/失败只更新状态，不终止流程
-            updateToolStatus(jsonData);
-
-            // 临时存储工具返回的URL（供Agent回复完成后使用）
-            if (jsonData.status === 'completed' && jsonData.url) {
-                localStorage.setItem(`toolUrl_${requestId}`, JSON.stringify({ url: jsonData.url }));
-            }
-        });
-
-        // 9. 错误处理
-        eventSource.onerror = (error) => {
-            console.error('SSE错误:', error);
-            eventSource.close();
-
-            const loadingElement = document.getElementById(`ai-loading-${requestId}`);
-            // 关闭loading
-            if (loadingElement) loadingElement.style.display = 'none';
-
-            if (hasReceivedData) {
-                sendBtn.disabled = false;
-                sendBtn.innerHTML = '发送';
-                return;
-            }
-
-            const aiContent = document.getElementById(`ai-content-${requestId}`);
-            const thinkingArea = document.getElementById(`thinking-${requestId}`);
-
-            if (thinkingArea) thinkingArea.style.display = 'none';
-            if (aiContent) {
-                aiContent.classList.add('show', 'error');
-                aiContent.textContent = '连接异常，请稍后重试';
-            }
-
-            sendBtn.disabled = false;
-            sendBtn.innerHTML = '发送';
-        };
+      }
+      showNextStep();
     }
 
-    // 绑定事件
-    sendBtn.addEventListener('click', sendMessage);
-    messageInput.addEventListener('keydown', function(e) {
-        if (e.key === 'Enter' && !e.shiftKey) {
-            e.preventDefault();
-            sendMessage();
+    function updateToolStatus(data) {
+      hasReceivedData = true;
+      toolCompleted = true;
+      const thinkingArea = document.getElementById('thinking-' + requestId);
+      const label = thinkingArea && thinkingArea.querySelector('.thinking-status-label');
+      if (label) label.textContent = '工具处理完成，正在整理回复...';
+      if (data.status === 'error') {
+        const replyEl = document.getElementById('ai-reply-wrap-' + requestId);
+        const aiContent = document.getElementById('ai-content-' + requestId);
+        if (thinkingArea) thinkingArea.style.display = 'none';
+        if (replyEl) replyEl.classList.remove('hidden');
+        if (aiContent) {
+          aiContent.classList.add('border-l-2', 'border-red-400', 'text-red-300');
+          aiContent.textContent = data.msg || '工具处理失败';
         }
+        const timeEl = document.getElementById('ai-time-' + requestId);
+        if (timeEl) {
+          timeEl.textContent = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        }
+        if (eventSource) {
+          eventSource.close();
+          eventSource = null;
+        }
+        setUIState(true);
+      }
+    }
+
+    function showAgentReply() {
+      const thinkingArea = document.getElementById('thinking-' + requestId);
+      const aiContent = document.getElementById('ai-content-' + requestId);
+      const replyEl = document.getElementById('ai-reply-wrap-' + requestId);
+      const timeEl = document.getElementById('ai-time-' + requestId);
+
+      if (eventSource) {
+        eventSource.close();
+        eventSource = null;
+      }
+      if (thinkingArea) thinkingArea.style.display = 'none';
+      if (replyEl) replyEl.classList.remove('hidden');
+      if (timeEl) {
+        timeEl.textContent = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      }
+      if (aiContent) {
+        if (agentReply) {
+          aiContent.textContent = agentReply;
+        } else if (toolCompleted) {
+          aiContent.classList.add('text-green-300', 'border-l-2', 'border-green-400');
+          let urlData = {};
+          try {
+            urlData = JSON.parse(localStorage.getItem('toolUrl_' + requestId) || '{}') || {};
+          } catch (_) { urlData = {}; }
+          if (urlData.url) {
+            const href = escapeHtml(urlData.url);
+            aiContent.innerHTML = '处理完成，<a href="' + href + '" target="_blank" rel="noopener noreferrer" class="text-green-400 underline">点击下载</a>（Agent总结：暂无回复）';
+          } else {
+            aiContent.textContent = '处理完成';
+          }
+        }
+      }
+      setUIState(true);
+    }
+
+    eventSource.addEventListener('message', (event) => {
+      if (event.data === '[DONE]') {
+        showAgentReply();
+        return;
+      }
+      if (!event.data.trim()) return;
+      hasReceivedData = true;
+      const aiContent = document.getElementById('ai-content-' + requestId);
+      const thinkingArea = document.getElementById('thinking-' + requestId);
+      const replyEl = document.getElementById('ai-reply-wrap-' + requestId);
+      if (thinkingArea) thinkingArea.style.display = 'none';
+      if (replyEl) replyEl.classList.remove('hidden');
+      if (aiContent) {
+        agentReply += event.data;
+        aiContent.textContent = agentReply;
+        const timeEl = document.getElementById('ai-time-' + requestId);
+        if (timeEl && !timeEl.textContent) {
+          timeEl.textContent = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        }
+      }
+      scrollToBottom();
     });
 
-    // 页面加载时自动加载历史记录
-    window.onload = function() {
-        loadChatHistory();
+    eventSource.addEventListener('startprogress', (event) => {
+      try {
+        thinkingQueue.push(JSON.parse(event.data));
+        processThinkingQueue();
+      } catch (e) {
+        console.error('解析 startprogress 失败:', e);
+      }
+    });
+
+    eventSource.addEventListener('endprogress', (event) => {
+      try {
+        thinkingQueue.push(JSON.parse(event.data));
+        processThinkingQueue();
+      } catch (e) {
+        console.error('解析 endprogress 失败:', e);
+      }
+    });
+
+    eventSource.addEventListener('progress', (event) => {
+      let jsonData = null;
+      try {
+        jsonData = JSON.parse(event.data);
+      } catch (e) {
+        updateToolStatus({ status: 'error', msg: event.data });
+        return;
+      }
+      updateToolStatus(jsonData);
+      if (jsonData.status === 'completed' && jsonData.url) {
+        localStorage.setItem('toolUrl_' + requestId, JSON.stringify({ url: jsonData.url }));
+      }
+    });
+
+    eventSource.onerror = () => {
+      if (eventSource) {
+        eventSource.close();
+        eventSource = null;
+      }
+      if (hasReceivedData) {
+        setUIState(true);
+        return;
+      }
+      const aiContent = document.getElementById('ai-content-' + requestId);
+      const thinkingArea = document.getElementById('thinking-' + requestId);
+      const replyEl = document.getElementById('ai-reply-wrap-' + requestId);
+      if (thinkingArea) thinkingArea.style.display = 'none';
+      if (replyEl) replyEl.classList.remove('hidden');
+      if (aiContent) {
+        aiContent.classList.add('border-l-2', 'border-red-400', 'text-red-300');
+        aiContent.textContent = '连接异常，请稍后重试';
+      }
+      const timeEl = document.getElementById('ai-time-' + requestId);
+      if (timeEl && !timeEl.textContent) {
+        timeEl.textContent = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      }
+      setUIState(true);
     };
+  }
+
+  sendBtn.addEventListener('click', sendMessage);
+  userInput.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') sendMessage();
+  });
+  if (refreshHistoryBtn) {
+    refreshHistoryBtn.addEventListener('click', () => loadChatHistory());
+  }
+
+  userInput.addEventListener('focus', () => {
+    userInput.parentElement.classList.add('scale-[1.01]');
+  });
+  userInput.addEventListener('focusout', () => {
+    userInput.parentElement.classList.remove('scale-[1.01]');
+  });
+
+  window.addEventListener('load', () => {
+    loadChatHistory();
+  });
 </script>
 </body>
 </html>
